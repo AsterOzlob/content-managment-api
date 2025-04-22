@@ -1,17 +1,15 @@
 package models
 
-import "gorm.io/gorm"
+import "time"
 
+// Media представляет медиафайл, связанный с контентом.
 type Media struct {
-	gorm.Model
-	ContentID uint   `gorm:"not null;index"`
-	AuthorID  uint   `gorm:"not null;index"`
-	FilePath  string `gorm:"not null"`
-	FileType  string `gorm:"not null;size:50"`
-	FileSize  int64  `gorm:"not null"`
-}
-
-// CanDelete проверяет право удаления
-func (m *Media) CanDelete(user User) bool {
-	return user.ID == m.AuthorID || user.Can("media", PermissionDelete)
+	ID        uint      `json:"id" gorm:"primaryKey"`              // Уникальный идентификатор медиафайла.
+	ContentID uint      `json:"content_id" gorm:"not null;index"`  // Идентификатор контента, к которому относится файл.
+	AuthorID  uint      `json:"author_id" gorm:"not null;index"`   // Идентификатор автора файла.
+	FilePath  string    `json:"file_path" gorm:"not null"`         // Путь к файлу на сервере.
+	FileType  string    `json:"file_type" gorm:"not null;size:50"` // Тип файла (например, "image/jpeg").
+	FileSize  int64     `json:"file_size" gorm:"not null"`         // Размер файла в байтах.
+	CreatedAt time.Time `json:"created_at"`                        // Дата загрузки файла.
+	UpdatedAt time.Time `json:"updated_at"`                        // Дата последнего обновления записи.
 }

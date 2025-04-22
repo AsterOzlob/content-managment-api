@@ -1,35 +1,16 @@
 package models
 
-import "gorm.io/gorm"
+import "time"
 
+// User представляет пользователя системы.
 type User struct {
-	gorm.Model
-	Username     string `gorm:"unique;not null;size:64"`
-	Email        string `gorm:"unique;size:255"`
-	PasswordHash string `gorm:"not null"`
-	Roles        []Role `gorm:"many2many:user_roles;"`
-}
-
-type UserRole struct {
-	UserID uint `gorm:"primaryKey"`
-	RoleID uint `gorm:"primaryKey"`
-}
-
-func (u *User) Can(resource string, permission PermissionBits) bool {
-	for _, role := range u.Roles {
-		if role.Can(resource, permission) {
-			return true
-		}
-	}
-	return false
-}
-
-// HasRole проверяет наличие роли
-func (u *User) HasRole(roleName string) bool {
-	for _, role := range u.Roles {
-		if role.Name == roleName {
-			return true
-		}
-	}
-	return false
+	ID           uint       `json:"id" gorm:"primaryKey"`                    // Уникальный идентификатор пользователя.
+	RoleID       uint       `gorm:"not null;index"`                          // ID роли пользователя
+	Role         Role       `gorm:"foreignKey:RoleID"`                       // Связь с ролью
+	Username     string     `json:"username" gorm:"unique;not null;size:64"` // Уникальное имя пользователя.
+	Email        string     `json:"email" gorm:"unique;size:255"`            // Уникальный email пользователя.
+	PasswordHash string     `json:"-" gorm:"not null"`                       // Хэшированный пароль (скрыт из JSON).
+	CreatedAt    time.Time  `json:"created_at"`                              // Дата создания записи.
+	UpdatedAt    time.Time  `json:"updated_at"`                              // Дата последнего обновления записи.
+	DeletedAt    *time.Time `json:"deleted_at,omitempty" gorm:"index"`       // Дата удаления записи (если применимо).
 }
