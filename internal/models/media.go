@@ -5,7 +5,7 @@ import "time"
 // Media представляет медиафайл, связанный с контентом.
 type Media struct {
 	ID        uint      `json:"id" gorm:"primaryKey"`              // Уникальный идентификатор медиафайла.
-	ContentID uint      `json:"content_id" gorm:"not null;index"`  // Идентификатор контента, к которому относится файл.
+	ArticleID uint      `json:"article_id" gorm:"not null;index"`  // Идентификатор контента, к которому относится файл.
 	AuthorID  uint      `json:"author_id" gorm:"not null;index"`   // Идентификатор автора файла.
 	FilePath  string    `json:"file_path" gorm:"not null"`         // Путь к файлу на сервере.
 	FileType  string    `json:"file_type" gorm:"not null;size:50"` // Тип файла (например, "image/jpeg").

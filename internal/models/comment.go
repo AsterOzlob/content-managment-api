@@ -6,7 +6,7 @@ import "time"
 type Comment struct {
 	ID        uint      `json:"id" gorm:"primaryKey"`             // Уникальный идентификатор комментария.
 	ParentID  *uint     `json:"parent_id" gorm:"index"`           // Идентификатор родительского комментария (если есть).
-	ContentID uint      `json:"content_id" gorm:"not null;index"` // Идентификатор контента, к которому относится комментарий.
+	ArticleID uint      `json:"article_id" gorm:"not null;index"` // Идентификатор контента, к которому относится комментарий.
 	AuthorID  uint      `json:"author_id" gorm:"not null;index"`  // Идентификатор автора комментария.
 	Text      string    `json:"text" gorm:"not null;type:text"`   // Текст комментария.
 	CreatedAt time.Time `json:"created_at"`                       // Дата создания комментария.
