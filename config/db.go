@@ -9,19 +9,19 @@ import (
 	"github.com/AsterOzlob/content_managment_api/internal/models"
 )
 
-var DB *gorm.DB
-
-func InitDB(config *Config) (*gorm.DB, error) {
+// InitDB инициализирует подключение к базе данных.
+func InitDB(dbConfig *DBConfig) (*gorm.DB, error) {
+	// Формирование строки подключения (DSN)
 	dsn := fmt.Sprintf("host=%s port=%s user=%s dbname=%s sslmode=%s password=%s",
-		config.DBHost,
-		config.DBPort,
-		config.DBUser,
-		config.DBName,
-		config.DBSSLMode,
-		config.DBPassword,
+		dbConfig.DBHost,
+		dbConfig.DBPort,
+		dbConfig.DBUser,
+		dbConfig.DBName,
+		getEnv("DB_SSL_MODE", "disable"), // Значение по умолчанию: disable
+		dbConfig.DBPassword,
 	)
 
-	// Подключение к БД
+	// Подключение к базе данных
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
@@ -34,16 +34,17 @@ func InitDB(config *Config) (*gorm.DB, error) {
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
+	fmt.Println("Database connection established successfully!")
 	return db, nil
 }
 
+// MigrateModels выполняет миграцию моделей.
 func MigrateModels(db *gorm.DB) error {
 	models := []interface{}{
 		&models.User{},
 		&models.Role{},
-		&models.Permission{},
 		&models.RefreshToken{},
-		&models.Content{},
+		&models.Article{},
 		&models.Media{},
 		&models.Comment{},
 	}
@@ -54,5 +55,6 @@ func MigrateModels(db *gorm.DB) error {
 		return fmt.Errorf("failed to migrate models: %w", err)
 	}
 
+	fmt.Println("Database migrations completed successfully!")
 	return nil
 }
