@@ -1,27 +1,27 @@
 package config
 
 import (
-	"fmt"
-
+	logging "github.com/AsterOzlob/content_managment_api/logger"
 	"github.com/joho/godotenv"
+	"github.com/sirupsen/logrus"
 )
 
+// DBConfig содержит настройки для подключения к базе данных.
 type DBConfig struct {
-	DBHost     string
-	DBPort     string
-	DBUser     string
-	DBPassword string
-	DBName     string
+	DBHost     string // Хост базы данных.
+	DBPort     string // Порт базы данных.
+	DBUser     string // Имя пользователя базы данных.
+	DBPassword string // Пароль пользователя базы данных.
+	DBName     string // Имя базы данных.
 }
 
-func LoadDBConfig() (*DBConfig, error) {
+// LoadDBConfig загружает конфигурацию базы данных из переменных окружения или .env файла.
+func LoadDBConfig(logger *logging.Logger) (*DBConfig, error) {
 	// Загрузка .env файла
-	err := godotenv.Load("./.env")
-	if err != nil {
-		return nil, fmt.Errorf("failed to load .env file: %w", err)
+	if err := godotenv.Load("./.env"); err != nil {
+		logger.Log(logrus.WarnLevel, "No .env file found, using environment variables", nil)
 	}
 
-	// Создание конфигурации с значениями по умолчанию
 	return &DBConfig{
 		DBHost:     getEnv("DB_HOST", "localhost"),
 		DBPort:     getEnv("DB_PORT", "5432"),
