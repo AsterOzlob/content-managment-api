@@ -18,9 +18,8 @@ package main
 // @in header
 // @name Authorization
 // @description Введите токен в формате: Bearer <your-token>
-import (
-	"fmt"
 
+import (
 	"github.com/AsterOzlob/content_managment_api/api/controllers"
 	"github.com/AsterOzlob/content_managment_api/api/routes"
 	"github.com/AsterOzlob/content_managment_api/config"
@@ -29,70 +28,114 @@ import (
 	"github.com/AsterOzlob/content_managment_api/internal/services"
 	logging "github.com/AsterOzlob/content_managment_api/logger"
 	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
+	"gorm.io/gorm"
 )
 
 func main() {
-	// Загрузка конфигурации
-	cfg, err := config.LoadConfig()
-	if err != nil {
-		fmt.Println("Error loading config:", err)
+	// Создаем экземпляр логгера для основного приложения.
+	appLogger := logging.NewLogger("logs/app.log")
+	appLogger.Log(logrus.InfoLevel, "Starting application", nil)
+
+	// Инициализация приложения: загрузка конфигурации, подключение к базе данных и миграции.
+	cfg, dbConn := initializeApp(appLogger)
+	if cfg == nil || dbConn == nil {
 		return
 	}
 
-	// Инициализация подключения к БД
-	dbConn, err := config.InitDB(cfg.DBConfig)
-	if err != nil {
-		fmt.Println("Error initializing database connection:", err)
+	// Настройка зависимостей: репозитории, сервисы, контроллеры.
+	deps := setupDependencies(dbConn, appLogger)
+
+	// Настройка маршрутизатора и эндпоинтов API.
+	r := setupRouter(deps, appLogger)
+
+	// Определяем адрес сервера и запускаем HTTP-сервер.
+	serverAddress := ":8080"
+	appLogger.Log(logrus.InfoLevel, "Starting HTTP server", map[string]interface{}{
+		"address": serverAddress,
+	})
+	if err := r.Run(serverAddress); err != nil {
+		appLogger.Log(logrus.ErrorLevel, "Failed to start HTTP server", map[string]interface{}{
+			"error": err.Error(),
+		})
 		return
 	}
 
-	// Миграция моделей
-	err = config.MigrateModels(dbConn)
+	appLogger.Log(logrus.InfoLevel, "Application started successfully!", nil)
+}
+
+// initializeApp выполняет начальную настройку приложения:
+// загрузку конфигурации, подключение к базе данных и выполнение миграций.
+func initializeApp(logger *logging.Logger) (*config.Config, *gorm.DB) {
+	// Загрузка конфигурации из .env файла или переменных окружения.
+	cfg, err := config.LoadConfig(logger)
 	if err != nil {
-		fmt.Println("Error migrating models:", err)
-		return
+		logger.Log(logrus.ErrorLevel, "Error loading config", map[string]interface{}{
+			"error": err.Error(),
+		})
+		return nil, nil
 	}
 
-	// DI для логгеров
-	articleLogger := logging.NewLogger("logs/articles.log")
-	userLogger := logging.NewLogger("logs/users.log")
+	// Инициализация подключения к базе данных PostgreSQL через GORM.
+	dbConn, err := config.InitDB(cfg.DBConfig, logger)
+	if err != nil {
+		logger.Log(logrus.ErrorLevel, "Error initializing database connection", map[string]interface{}{
+			"error": err.Error(),
+		})
+		return nil, nil
+	}
 
-	// DI для репозиториев
-	userRepo := repositories.NewUserRepository(dbConn, userLogger)
-	articleRepo := repositories.NewArticleRepository(dbConn, articleLogger)
+	// Выполнение миграций для создания таблиц в базе данных.
+	if err := config.MigrateModels(dbConn, logger); err != nil {
+		logger.Log(logrus.ErrorLevel, "Error migrating models", map[string]interface{}{
+			"error": err.Error(),
+		})
+		return nil, nil
+	}
 
-	// DI для сервисов
-	userSvc := services.NewUserService(userRepo, userLogger)
-	articleSvc := services.NewArticleService(articleRepo, articleLogger)
+	return cfg, dbConn // Возвращаем конфигурацию и подключение к базе данных.
+}
 
-	// DI для контроллеров
-	userCtrl := controllers.NewUserController(userSvc, userLogger)
-	articleCtrl := controllers.NewArticleController(articleSvc, articleLogger)
+// setupDependencies настраивает зависимости приложения:
+// репозитории, сервисы и контроллеры.
+func setupDependencies(dbConn *gorm.DB, logger *logging.Logger) *routes.Dependencies {
+	// Инициализация репозиториев.
+	userRepo := repositories.NewUserRepository(dbConn, logger)
+	articleRepo := repositories.NewArticleRepository(dbConn, logger)
 
-	// Инициализация структуры зависимостей
-	deps := &routes.Dependencies{
+	// Инициализация сервисов.
+	userSvc := services.NewUserService(userRepo, logger)
+	articleSvc := services.NewArticleService(articleRepo, logger)
+
+	// Инциализация контроллеров.
+	userCtrl := controllers.NewUserController(userSvc, logger)
+	articleCtrl := controllers.NewArticleController(articleSvc, logger)
+
+	// Возвращаем структуру зависимостей, которая содержит все компоненты приложения.
+	return &routes.Dependencies{
 		UserCtrl:    userCtrl,
 		ArticleCtrl: articleCtrl,
-		JWTConfig:   cfg.JWTConfig,
+		JWTConfig:   nil, // TODO: передать JWTConfig (например, из конфигурации).
 	}
+}
 
-	// Инициализация маршрутизатора
+// setupRouter настраивает маршрутизатор Gin и определяет эндпоинты API.
+func setupRouter(deps *routes.Dependencies, logger *logging.Logger) *gin.Engine {
+	// Создаем новый экземпляр маршрутизатора Gin.
 	r := gin.Default()
 
-	// Настройка маршрутов
+	// Регистрируем маршруты API, используя зависимости (контроллеры, сервисы и т.д.).
 	routes.SetupRoutes(r, deps)
 
-	// Найстройка Swagger
+	// Добавляем эндпоинт для просмотра Swagger-документации.
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(
 		swaggerFiles.Handler,
 		ginSwagger.InstanceName("swagger"),
-		ginSwagger.DocExpansion("none"),
+		ginSwagger.DocExpansion("none"), // Отключаем автоматическое раскрытие всех секций документации.
 	))
+	logger.Log(logrus.InfoLevel, "Swagger documentation endpoint configured", nil)
 
-	// Запуск сервера
-	r.Run(":8080")
-
-	fmt.Println("Application started successfully!")
+	return r // Возвращаем настроенный маршрутизатор.
 }
