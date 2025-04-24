@@ -7,6 +7,7 @@ import (
 	"github.com/AsterOzlob/content_managment_api/internal/dto"
 	"github.com/AsterOzlob/content_managment_api/internal/dto/mappers"
 	"github.com/AsterOzlob/content_managment_api/internal/services"
+	logging "github.com/AsterOzlob/content_managment_api/logger"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 )
@@ -14,12 +15,12 @@ import (
 // ArticleController предоставляет методы для управления статьями через HTTP API.
 type ArticleController struct {
 	service *services.ArticleService // service - экземпляр ArticleService для выполнения бизнес-логики.
-	logger  *logrus.Logger           // logger - экземпляр логгера для ArticleController.
+	Logger  *logging.Logger          // Logger - экземпляр логгера для ArticleController.
 }
 
 // NewArticleController создает новый экземпляр ArticleController.
-func NewArticleController(service *services.ArticleService, logger *logrus.Logger) *ArticleController {
-	return &ArticleController{service: service, logger: logger}
+func NewArticleController(service *services.ArticleService, logger *logging.Logger) *ArticleController {
+	return &ArticleController{service: service, Logger: logger}
 }
 
 // @Summary Create a new article
@@ -34,17 +35,17 @@ func NewArticleController(service *services.ArticleService, logger *logrus.Logge
 func (c *ArticleController) CreateArticle(ctx *gin.Context) {
 	var input dto.ArticleInput
 	if err := ctx.ShouldBindJSON(&input); err != nil {
-		c.logger.WithFields(logrus.Fields{
+		c.Logger.Log(logrus.ErrorLevel, "Failed to bind JSON", map[string]interface{}{
 			"error": err.Error(),
-		}).Error("Failed to bind JSON")
+		})
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.logger.WithFields(logrus.Fields{
+	c.Logger.Log(logrus.InfoLevel, "Creating new article", map[string]interface{}{
 		"author_id": input.AuthorID,
 		"title":     input.Title,
-	}).Info("Creating new article")
+	})
 
 	// Создаем новую статью
 	article, err := c.service.CreateArticle(dto.ArticleInput{
@@ -55,9 +56,9 @@ func (c *ArticleController) CreateArticle(ctx *gin.Context) {
 		MediaIDs:  input.MediaIDs,
 	})
 	if err != nil {
-		c.logger.WithFields(logrus.Fields{
+		c.Logger.Log(logrus.ErrorLevel, "Failed to create article", map[string]interface{}{
 			"error": err.Error(),
-		}).Error("Failed to create article")
+		})
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -74,13 +75,13 @@ func (c *ArticleController) CreateArticle(ctx *gin.Context) {
 // @Failure 500 {object} map[string]string
 // @Router /article [get]
 func (c *ArticleController) GetAllArticles(ctx *gin.Context) {
-	c.logger.Info("Fetching all articles")
+	c.Logger.Log(logrus.InfoLevel, "Fetching all articles", nil)
 
 	articles, err := c.service.GetAllArticles()
 	if err != nil {
-		c.logger.WithFields(logrus.Fields{
+		c.Logger.Log(logrus.ErrorLevel, "Failed to fetch all articles", map[string]interface{}{
 			"error": err.Error(),
-		}).Error("Failed to fetch all articles")
+		})
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -107,22 +108,22 @@ func (c *ArticleController) GetArticleByID(ctx *gin.Context) {
 	idStr := ctx.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
-		c.logger.WithFields(logrus.Fields{
+		c.Logger.Log(logrus.ErrorLevel, "Invalid article ID", map[string]interface{}{
 			"error": err.Error(),
-		}).Error("Invalid article ID")
+		})
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid article ID"})
 		return
 	}
 
-	c.logger.WithFields(logrus.Fields{
+	c.Logger.Log(logrus.InfoLevel, "Fetching article by ID", map[string]interface{}{
 		"article_id": id,
-	}).Info("Fetching article by ID")
+	})
 
 	article, err := c.service.GetArticleByID(uint(id))
 	if err != nil {
-		c.logger.WithFields(logrus.Fields{
+		c.Logger.Log(logrus.ErrorLevel, "Failed to fetch article by ID", map[string]interface{}{
 			"error": err.Error(),
-		}).Error("Failed to fetch article by ID")
+		})
 		ctx.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}
@@ -146,32 +147,32 @@ func (c *ArticleController) UpdateArticle(ctx *gin.Context) {
 	idStr := ctx.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
-		c.logger.WithFields(logrus.Fields{
+		c.Logger.Log(logrus.ErrorLevel, "Invalid article ID", map[string]interface{}{
 			"error": err.Error(),
-		}).Error("Invalid article ID")
+		})
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid article ID"})
 		return
 	}
 
 	var input dto.ArticleInput
 	if err := ctx.ShouldBindJSON(&input); err != nil {
-		c.logger.WithFields(logrus.Fields{
+		c.Logger.Log(logrus.ErrorLevel, "Failed to bind JSON", map[string]interface{}{
 			"error": err.Error(),
-		}).Error("Failed to bind JSON")
+		})
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.logger.WithFields(logrus.Fields{
+	c.Logger.Log(logrus.InfoLevel, "Updating article", map[string]interface{}{
 		"article_id": id,
 		"title":      input.Title,
-	}).Info("Updating article")
+	})
 
 	article, err := c.service.UpdateArticle(uint(id), input)
 	if err != nil {
-		c.logger.WithFields(logrus.Fields{
+		c.Logger.Log(logrus.ErrorLevel, "Failed to update article", map[string]interface{}{
 			"error": err.Error(),
-		}).Error("Failed to update article")
+		})
 		ctx.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}
@@ -193,21 +194,21 @@ func (c *ArticleController) DeleteArticle(ctx *gin.Context) {
 	idStr := ctx.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
-		c.logger.WithFields(logrus.Fields{
+		c.Logger.Log(logrus.ErrorLevel, "Invalid article ID", map[string]interface{}{
 			"error": err.Error(),
-		}).Error("Invalid article ID")
+		})
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid article ID"})
 		return
 	}
 
-	c.logger.WithFields(logrus.Fields{
+	c.Logger.Log(logrus.InfoLevel, "Deleting article", map[string]interface{}{
 		"article_id": id,
-	}).Info("Deleting article")
+	})
 
 	if err := c.service.DeleteArticle(uint(id)); err != nil {
-		c.logger.WithFields(logrus.Fields{
+		c.Logger.Log(logrus.ErrorLevel, "Failed to delete article", map[string]interface{}{
 			"error": err.Error(),
-		}).Error("Failed to delete article")
+		})
 		ctx.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}
