@@ -43,3 +43,20 @@ func NewLogger(logFile string) *Logger {
 
 	return &Logger{logger}
 }
+
+// Log записывает сообщение с указанным уровнем логирования и дополнительными полями.
+func (l *Logger) Log(level logrus.Level, message string, fields map[string]interface{}) {
+	entry := l.WithFields(fields)
+	switch level {
+	case logrus.InfoLevel:
+		entry.Info(message)
+	case logrus.WarnLevel:
+		entry.Warn(message)
+	case logrus.ErrorLevel:
+		entry.Error(message)
+	case logrus.DebugLevel:
+		entry.Debug(message)
+	default:
+		entry.Info(message) // По умолчанию используем уровень Info
+	}
+}
