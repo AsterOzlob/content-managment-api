@@ -11,4 +11,7 @@ type Comment struct {
 	Text      string    `json:"text" gorm:"not null;type:text"`   // Текст комментария.
 	CreatedAt time.Time `json:"created_at"`                       // Дата создания комментария.
 	UpdatedAt time.Time `json:"updated_at"`                       // Дата последнего обновления комментария.
+
+	// Вложенные комментарии (рекурсивная связь)
+	Replies []Comment `json:"replies,omitempty" gorm:"foreignKey:ParentID;constraint:OnDelete:CASCADE;"` // Дочерние комментарии.
 }

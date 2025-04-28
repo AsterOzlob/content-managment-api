@@ -31,7 +31,7 @@ func NewArticleController(service *services.ArticleService, logger *logging.Logg
 // @Param article body dto.ArticleInput true "Article Data"
 // @Success 201 {object} dto.ArticleResponse
 // @Failure 400 {object} map[string]string
-// @Router /article [post]
+// @Router /articles [post]
 func (c *ArticleController) CreateArticle(ctx *gin.Context) {
 	var input dto.ArticleInput
 	if err := ctx.ShouldBindJSON(&input); err != nil {
@@ -73,7 +73,7 @@ func (c *ArticleController) CreateArticle(ctx *gin.Context) {
 // @Produce json
 // @Success 200 {array} dto.ArticleResponse
 // @Failure 500 {object} map[string]string
-// @Router /article [get]
+// @Router /articles [get]
 func (c *ArticleController) GetAllArticles(ctx *gin.Context) {
 	c.Logger.Log(logrus.InfoLevel, "Fetching all articles", nil)
 
@@ -103,7 +103,7 @@ func (c *ArticleController) GetAllArticles(ctx *gin.Context) {
 // @Success 200 {object} dto.ArticleResponse
 // @Failure 400 {object} map[string]string
 // @Failure 404 {object} map[string]string
-// @Router /article/{id} [get]
+// @Router /articles/{id} [get]
 func (c *ArticleController) GetArticleByID(ctx *gin.Context) {
 	idStr := ctx.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
@@ -142,7 +142,7 @@ func (c *ArticleController) GetArticleByID(ctx *gin.Context) {
 // @Success 200 {object} dto.ArticleResponse
 // @Failure 400 {object} map[string]string
 // @Failure 404 {object} map[string]string
-// @Router /article/{id} [put]
+// @Router /articles/{id} [put]
 func (c *ArticleController) UpdateArticle(ctx *gin.Context) {
 	idStr := ctx.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
@@ -189,7 +189,7 @@ func (c *ArticleController) UpdateArticle(ctx *gin.Context) {
 // @Success 200 {object} map[string]string
 // @Failure 400 {object} map[string]string
 // @Failure 404 {object} map[string]string
-// @Router /article/{id} [delete]
+// @Router /articles/{id} [delete]
 func (c *ArticleController) DeleteArticle(ctx *gin.Context) {
 	idStr := ctx.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)

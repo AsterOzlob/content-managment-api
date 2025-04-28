@@ -10,6 +10,7 @@ import (
 type Dependencies struct {
 	UserCtrl    *controllers.UserController
 	ArticleCtrl *controllers.ArticleController
+	CommentCtrl *controllers.CommentController
 	JWTConfig   *config.JWTConfig
 }
 
@@ -17,5 +18,7 @@ func SetupRoutes(router *gin.Engine, deps *Dependencies) {
 	// Регистрация маршрутов для пользователей
 	RegisterUserRoutes(router, deps)
 	// Регистрация маршрутов для контента
-	RegisterContentRoutes(router, deps)
+	RegisterArticleRoutes(router, deps)
+	// Регистрация маршрутов для комментариев
+	RegisterCommentRoutes(router, deps)
 }
