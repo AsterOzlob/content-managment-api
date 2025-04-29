@@ -10,8 +10,9 @@ import (
 
 // Config объединяет все конфигурации приложения.
 type Config struct {
-	DBConfig  *DBConfig  // Конфигурация базы данных.
-	JWTConfig *JWTConfig // Конфигурация JWT.
+	DBConfig    *DBConfig    // Конфигурация базы данных.
+	JWTConfig   *JWTConfig   // Конфигурация JWT.
+	MediaConfig *MediaConfig // Конфигурая медиа файлов
 }
 
 // LoadConfig загружает общую конфигурацию приложения.
@@ -33,9 +34,18 @@ func LoadConfig(logger *logging.Logger) (*Config, error) {
 		return nil, fmt.Errorf("failed to load JWT config: %w", err)
 	}
 
+	mediaConfig, err := LoadMediaConfig(logger)
+	if err != nil {
+		logger.Log(logrus.ErrorLevel, "Failed to load Media config", map[string]interface{}{
+			"error": err.Error(),
+		})
+		return nil, fmt.Errorf("failed to load Media config: %w", err)
+	}
+
 	return &Config{
-		DBConfig:  dbConfig,
-		JWTConfig: jwtConfig,
+		DBConfig:    dbConfig,
+		JWTConfig:   jwtConfig,
+		MediaConfig: mediaConfig,
 	}, nil
 }
 

@@ -11,6 +11,7 @@ type Dependencies struct {
 	UserCtrl    *controllers.UserController
 	ArticleCtrl *controllers.ArticleController
 	CommentCtrl *controllers.CommentController
+	MediaCtrl   *controllers.MediaController
 	JWTConfig   *config.JWTConfig
 }
 
@@ -21,4 +22,6 @@ func SetupRoutes(router *gin.Engine, deps *Dependencies) {
 	RegisterArticleRoutes(router, deps)
 	// Регистрация маршрутов для комментариев
 	RegisterCommentRoutes(router, deps)
+	// Регистрация маршрутов для медиа файлов
+	RegisterMediaRoutes(router, deps)
 }
