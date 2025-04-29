@@ -46,7 +46,7 @@ func main() {
 	}
 
 	// Настройка зависимостей: репозитории, сервисы, контроллеры.
-	deps := setupDependencies(dbConn)
+	deps := setupDependencies(dbConn, cfg)
 
 	// Настройка маршрутизатора и эндпоинтов API.
 	r := setupRouter(deps, appLogger)
@@ -100,33 +100,38 @@ func initializeApp(logger *logging.Logger) (*config.Config, *gorm.DB) {
 
 // setupDependencies настраивает зависимости приложения:
 // репозитории, сервисы и контроллеры.
-func setupDependencies(dbConn *gorm.DB) *routes.Dependencies {
+func setupDependencies(dbConn *gorm.DB, cfg *config.Config) *routes.Dependencies {
 	// Создаем отдельные логгеры для каждой области.
 	userLogger := logging.NewLogger("logs/users.log")
 	articleLogger := logging.NewLogger("logs/articles.log")
 	commentLogger := logging.NewLogger("logs/comments.log")
+	mediaLogger := logging.NewLogger("logs/media.log")
 
 	// Инициализация репозиториев.
 	userRepo := repositories.NewUserRepository(dbConn, userLogger)
 	articleRepo := repositories.NewArticleRepository(dbConn, articleLogger)
 	commentRepo := repositories.NewCommentRepository(dbConn, commentLogger)
+	mediaRepo := repositories.NewMediaRepository(dbConn, mediaLogger)
 
 	// Инициализация сервисов.
 	userSvc := services.NewUserService(userRepo, userLogger)
 	articleSvc := services.NewArticleService(articleRepo, articleLogger)
 	commentSvc := services.NewCommentService(commentRepo, commentLogger)
+	mediaSvc := services.NewMediaService(mediaRepo, mediaLogger)
 
 	// Инициализация контроллеров.
 	userCtrl := controllers.NewUserController(userSvc, userLogger)
 	articleCtrl := controllers.NewArticleController(articleSvc, articleLogger)
 	commentCtrl := controllers.NewCommentController(commentSvc, commentLogger)
+	mediaCtrl := controllers.NewMediaController(mediaSvc, mediaLogger, cfg.MediaConfig)
 
 	// Возвращаем структуру зависимостей, которая содержит все компоненты приложения.
 	return &routes.Dependencies{
 		UserCtrl:    userCtrl,
 		ArticleCtrl: articleCtrl,
 		CommentCtrl: commentCtrl,
-		JWTConfig:   nil, // TODO: передать JWTConfig (например, из конфигурации).
+		MediaCtrl:   mediaCtrl,
+		JWTConfig:   cfg.JWTConfig,
 	}
 }
 
