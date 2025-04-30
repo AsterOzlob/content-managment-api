@@ -20,6 +20,8 @@ package main
 // @description Введите токен в формате: Bearer <your-token>
 
 import (
+	"time"
+
 	"github.com/AsterOzlob/content_managment_api/api/controllers"
 	"github.com/AsterOzlob/content_managment_api/api/routes"
 	"github.com/AsterOzlob/content_managment_api/config"
@@ -47,6 +49,9 @@ func main() {
 
 	// Настройка зависимостей: репозитории, сервисы, контроллеры.
 	deps := setupDependencies(dbConn, cfg)
+
+	// Запуск планировщика для очистки истекших токенов.
+	startTokenCleanupScheduler(deps.RefreshTokenRepo, appLogger)
 
 	// Настройка маршрутизатора и эндпоинтов API.
 	r := setupRouter(deps, appLogger)
@@ -102,36 +107,47 @@ func initializeApp(logger *logging.Logger) (*config.Config, *gorm.DB) {
 // репозитории, сервисы и контроллеры.
 func setupDependencies(dbConn *gorm.DB, cfg *config.Config) *routes.Dependencies {
 	// Создаем отдельные логгеры для каждой области.
+	authLogger := logging.NewLogger("logs/auth.log")
 	userLogger := logging.NewLogger("logs/users.log")
 	articleLogger := logging.NewLogger("logs/articles.log")
 	commentLogger := logging.NewLogger("logs/comments.log")
 	mediaLogger := logging.NewLogger("logs/media.log")
+	roleLogger := logging.NewLogger("logs/role.log")
 
 	// Инициализация репозиториев.
 	userRepo := repositories.NewUserRepository(dbConn, userLogger)
 	articleRepo := repositories.NewArticleRepository(dbConn, articleLogger)
 	commentRepo := repositories.NewCommentRepository(dbConn, commentLogger)
 	mediaRepo := repositories.NewMediaRepository(dbConn, mediaLogger)
+	refreshTokenRepo := repositories.NewRefreshTokenRepository(dbConn, authLogger)
+	roleRepo := repositories.NewRoleRepository(dbConn, roleLogger)
 
 	// Инициализация сервисов.
+	authService := services.NewAuthService(userRepo, refreshTokenRepo, authLogger, cfg.JWTConfig)
 	userSvc := services.NewUserService(userRepo, userLogger)
 	articleSvc := services.NewArticleService(articleRepo, articleLogger)
 	commentSvc := services.NewCommentService(commentRepo, commentLogger)
 	mediaSvc := services.NewMediaService(mediaRepo, mediaLogger)
+	roleSvc := services.NewRoleService(roleRepo, roleLogger)
 
 	// Инициализация контроллеров.
+	authCtrl := controllers.NewAuthController(authService, authLogger)
 	userCtrl := controllers.NewUserController(userSvc, userLogger)
 	articleCtrl := controllers.NewArticleController(articleSvc, articleLogger)
 	commentCtrl := controllers.NewCommentController(commentSvc, commentLogger)
 	mediaCtrl := controllers.NewMediaController(mediaSvc, mediaLogger, cfg.MediaConfig)
+	roleCtrl := controllers.NewRoleController(roleSvc, roleLogger)
 
 	// Возвращаем структуру зависимостей, которая содержит все компоненты приложения.
 	return &routes.Dependencies{
-		UserCtrl:    userCtrl,
-		ArticleCtrl: articleCtrl,
-		CommentCtrl: commentCtrl,
-		MediaCtrl:   mediaCtrl,
-		JWTConfig:   cfg.JWTConfig,
+		AuthCtrl:         authCtrl,
+		UserCtrl:         userCtrl,
+		ArticleCtrl:      articleCtrl,
+		CommentCtrl:      commentCtrl,
+		MediaCtrl:        mediaCtrl,
+		RoleCtrl:         roleCtrl,
+		JWTConfig:        cfg.JWTConfig,
+		RefreshTokenRepo: refreshTokenRepo, // Добавляем репозиторий refresh токенов
 	}
 }
 
@@ -152,4 +168,21 @@ func setupRouter(deps *routes.Dependencies, logger *logging.Logger) *gin.Engine 
 	logger.Log(logrus.InfoLevel, "Swagger documentation endpoint configured", nil)
 
 	return r // Возвращаем настроенный маршрутизатор.
+}
+
+// startTokenCleanupScheduler запускает планировщик для очистки истекших токенов.
+func startTokenCleanupScheduler(refreshTokenRepo *repositories.RefreshTokenRepository, logger *logging.Logger) {
+	go func() {
+		for {
+			time.Sleep(1 * time.Hour) // Запуск каждыq час
+			logger.Log(logrus.InfoLevel, "Running scheduled cleanup of expired refresh tokens", nil)
+			if err := refreshTokenRepo.CleanupExpiredTokens(); err != nil {
+				logger.Log(logrus.ErrorLevel, "Error during cleanup of expired refresh tokens", map[string]interface{}{
+					"error": err.Error(),
+				})
+			} else {
+				logger.Log(logrus.InfoLevel, "Successfully cleaned up expired refresh tokens", nil)
+			}
+		}
+	}()
 }

@@ -29,6 +29,7 @@ func NewArticleController(service *services.ArticleService, logger *logging.Logg
 // @Accept json
 // @Produce json
 // @Param article body dto.ArticleInput true "Article Data"
+// @Security BearerAuth
 // @Success 201 {object} dto.ArticleResponse
 // @Failure 400 {object} map[string]string
 // @Router /articles [post]
@@ -139,6 +140,7 @@ func (c *ArticleController) GetArticleByID(ctx *gin.Context) {
 // @Produce json
 // @Param id path uint true "Article ID"
 // @Param article body dto.ArticleInput true "Updated Article Data"
+// @Security BearerAuth
 // @Success 200 {object} dto.ArticleResponse
 // @Failure 400 {object} map[string]string
 // @Failure 404 {object} map[string]string
@@ -186,6 +188,7 @@ func (c *ArticleController) UpdateArticle(ctx *gin.Context) {
 // @Tags Articles
 // @Produce json
 // @Param id path uint true "Article ID"
+// @Security BearerAuth
 // @Success 200 {object} map[string]string
 // @Failure 400 {object} map[string]string
 // @Failure 404 {object} map[string]string
