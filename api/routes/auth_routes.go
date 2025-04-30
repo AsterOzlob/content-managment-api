@@ -6,7 +6,7 @@ import (
 
 // RegisterAuthRoutes регистрирует маршруты для аутентификации.
 func RegisterAuthRoutes(r *gin.Engine, deps *Dependencies) {
-	auth := r.Group("/auth")
+	auth := r.Group("/users")
 	{
 		// Открытые эндпоинты
 		auth.POST("/signup", deps.AuthCtrl.SignUp)        // Регистрация пользователя

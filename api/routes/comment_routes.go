@@ -15,10 +15,17 @@ func RegisterCommentRoutes(r *gin.Engine, deps *Dependencies) {
 		{
 			// Все аутентифицированные пользователи могут оставлять комментарии
 			protected.POST("/:id/comments", middleware.RoleMiddleware("user", "author", "moderator", "admin"), deps.CommentCtrl.AddCommentToArticle)
+
+			// Все аутентифицированные пользователи могут просматривать комментарии
 			protected.GET("/:id/comments", middleware.RoleMiddleware("user", "author", "moderator", "admin"), deps.CommentCtrl.GetCommentsByArticleID)
 		}
 	}
 
 	// Глобальные маршруты для комментариев
-	r.DELETE("/comments/:id", middleware.AuthMiddleware(deps.JWTConfig), middleware.RoleMiddleware("moderator", "admin"), deps.CommentCtrl.DeleteComment) // Удаление комментария
+	r.DELETE("/comments/:id",
+		middleware.AuthMiddleware(deps.JWTConfig),
+		middleware.OwnershipMiddleware(),
+		middleware.RoleMiddleware("user", "moderator", "admin"),
+		deps.CommentCtrl.DeleteComment,
+	)
 }

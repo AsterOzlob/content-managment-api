@@ -30,7 +30,7 @@ func NewAuthController(service *services.AuthService, logger *logging.Logger) *A
 // @Success 201 {object} dto.AuthResponse "User successfully registered"
 // @Failure 400 {object} map[string]string "Invalid input data"
 // @Failure 500 {object} map[string]string "Internal server error"
-// @Router /auth/signup [post]
+// @Router /users/signup [post]
 func (c *AuthController) SignUp(ctx *gin.Context) {
 	var input dto.AuthInput
 	if err := ctx.ShouldBindJSON(&input); err != nil {
@@ -67,7 +67,7 @@ func (c *AuthController) SignUp(ctx *gin.Context) {
 // @Success 200 {object} dto.AuthResponse "User successfully authenticated"
 // @Failure 400 {object} map[string]string "Invalid input data"
 // @Failure 401 {object} map[string]string "Invalid credentials"
-// @Router /auth/login [post]
+// @Router /users/login [post]
 func (c *AuthController) Login(ctx *gin.Context) {
 	var input dto.AuthInput
 	if err := ctx.ShouldBindJSON(&input); err != nil {

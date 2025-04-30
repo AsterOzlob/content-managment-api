@@ -18,13 +18,13 @@ func NewUserRepository(db *gorm.DB, logger *logging.Logger) *UserRepository {
 	return &UserRepository{DB: db, Logger: logger}
 }
 
-// Create создает нового пользователя в базе данных.
 func (r *UserRepository) Create(user *models.User) error {
 	r.Logger.Log(logrus.InfoLevel, "Creating new user in database", map[string]interface{}{
 		"username": user.Username,
 		"email":    user.Email,
 	})
 
+	// Создаем пользователя
 	result := r.DB.Create(user)
 	if result.Error != nil {
 		r.Logger.Log(logrus.ErrorLevel, "Failed to create user in database", map[string]interface{}{
@@ -32,6 +32,15 @@ func (r *UserRepository) Create(user *models.User) error {
 		})
 		return result.Error
 	}
+
+	// Предзагружаем роль пользователя
+	if err := r.DB.Preload("Role").First(&user, user.ID).Error; err != nil {
+		r.Logger.Log(logrus.ErrorLevel, "Failed to preload role for user after creation", map[string]interface{}{
+			"error": err.Error(),
+		})
+		return err
+	}
+
 	return nil
 }
 
@@ -72,9 +81,8 @@ func (r *UserRepository) GetByEmail(email string) (*models.User, error) {
 	r.Logger.Log(logrus.InfoLevel, "Fetching user by email from database", map[string]interface{}{
 		"email": email,
 	})
-
 	var user models.User
-	result := r.DB.Where("email = ?", email).First(&user)
+	result := r.DB.Preload("Role").Where("email = ?", email).First(&user)
 	if result.Error != nil {
 		r.Logger.Log(logrus.ErrorLevel, "Failed to fetch user by email from database", map[string]interface{}{
 			"error": result.Error.Error(),
@@ -84,6 +92,22 @@ func (r *UserRepository) GetByEmail(email string) (*models.User, error) {
 	return &user, nil
 }
 
+// GetRoleByName возвращает роль по её имени.
+func (r *UserRepository) GetRoleByName(roleName string) (*models.Role, error) {
+	r.Logger.Log(logrus.InfoLevel, "Fetching role by name from database", map[string]interface{}{
+		"role_name": roleName,
+	})
+	var role models.Role
+	result := r.DB.Where("name = ?", roleName).First(&role)
+	if result.Error != nil {
+		r.Logger.Log(logrus.WarnLevel, "Failed to fetch role by name from database", map[string]interface{}{
+			"error": result.Error.Error(),
+		})
+		return nil, result.Error
+	}
+	return &role, nil
+}
+
 // UpdateRole обновляет роль пользователя.
 func (r *UserRepository) UpdateRole(userID uint, roleName string) error {
 	r.Logger.Log(logrus.InfoLevel, "Updating user role in database", map[string]interface{}{
@@ -91,6 +115,7 @@ func (r *UserRepository) UpdateRole(userID uint, roleName string) error {
 		"role":    roleName,
 	})
 
+	// Находим пользователя по ID
 	var user models.User
 	if err := r.DB.First(&user, userID).Error; err != nil {
 		r.Logger.Log(logrus.ErrorLevel, "Failed to find user for role update", map[string]interface{}{
@@ -99,14 +124,16 @@ func (r *UserRepository) UpdateRole(userID uint, roleName string) error {
 		return err
 	}
 
-	var role models.Role
-	if err := r.DB.Where("name = ?", roleName).First(&role).Error; err != nil {
+	// Используем новый метод GetRoleByName для получения роли
+	role, err := r.GetRoleByName(roleName)
+	if err != nil {
 		r.Logger.Log(logrus.ErrorLevel, "Failed to find role for role update", map[string]interface{}{
 			"error": err.Error(),
 		})
 		return err
 	}
 
+	// Обновляем роль пользователя
 	user.RoleID = role.ID
 	if err := r.DB.Save(&user).Error; err != nil {
 		r.Logger.Log(logrus.ErrorLevel, "Failed to update user role in database", map[string]interface{}{
@@ -114,6 +141,7 @@ func (r *UserRepository) UpdateRole(userID uint, roleName string) error {
 		})
 		return err
 	}
+
 	return nil
 }
 

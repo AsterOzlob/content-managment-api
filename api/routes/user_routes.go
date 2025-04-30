@@ -13,11 +13,17 @@ func RegisterUserRoutes(r *gin.Engine, deps *Dependencies) {
 		protected := user.Group("/")
 		protected.Use(middleware.AuthMiddleware(deps.JWTConfig)) // Middleware для JWT-аутентификации
 		{
-			// Временно убрана проверка прав (middleware.RoleMiddleware)
-			protected.GET("/:id", deps.UserCtrl.GetUserByID)
-			protected.PATCH("/:id/role", deps.UserCtrl.AssignRole)
-			protected.DELETE("/:id", deps.UserCtrl.DeleteUser)
-			protected.GET("", deps.UserCtrl.GetAllUsers)
+			// Пользователь может получить информацию только о себе
+			protected.GET("/:id", middleware.OwnershipMiddleware(), middleware.RoleMiddleware("user", "admin"), deps.UserCtrl.GetUserByID)
+
+			// Администраторы могут назначать роли
+			protected.PATCH("/:id/role", middleware.RoleMiddleware("admin"), deps.UserCtrl.AssignRole)
+
+			// Администраторы могут удалять пользователей
+			protected.DELETE("/:id", middleware.RoleMiddleware("admin"), deps.UserCtrl.DeleteUser)
+
+			// Администраторы могут получать список всех пользователей
+			protected.GET("", middleware.RoleMiddleware("admin"), deps.UserCtrl.GetAllUsers)
 		}
 	}
 }

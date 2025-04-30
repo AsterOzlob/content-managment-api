@@ -17,10 +17,14 @@ func RegisterArticleRoutes(r *gin.Engine, deps *Dependencies) {
 		protected := content.Group("/")
 		protected.Use(middleware.AuthMiddleware(deps.JWTConfig)) // Middleware для JWT-аутентификации
 		{
-			// Авторы могут создавать и управлять своими материалами
-			protected.POST("", middleware.RoleMiddleware("author", "admin"), deps.ArticleCtrl.CreateArticle)       // Создание статьи
-			protected.PUT("/:id", middleware.RoleMiddleware("author", "admin"), deps.ArticleCtrl.UpdateArticle)    // Обновление статьи
-			protected.DELETE("/:id", middleware.RoleMiddleware("author", "admin"), deps.ArticleCtrl.DeleteArticle) // Удаление статьи
+			// Авторы могут создавать статьи
+			protected.POST("", middleware.RoleMiddleware("author", "admin"), deps.ArticleCtrl.CreateArticle)
+
+			// Авторы могут редактировать свои статьи, модераторы и администраторы — любые
+			protected.PUT("/:id", middleware.OwnershipMiddleware(), middleware.RoleMiddleware("author", "moderator", "admin"), deps.ArticleCtrl.UpdateArticle)
+
+			// Авторы могут удалять свои статьи, модераторы и администраторы — любые
+			protected.DELETE("/:id", middleware.OwnershipMiddleware(), middleware.RoleMiddleware("author", "moderator", "admin"), deps.ArticleCtrl.DeleteArticle)
 		}
 	}
 }

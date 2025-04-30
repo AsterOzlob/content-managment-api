@@ -14,21 +14,21 @@ func RoleMiddleware(allowedRoles ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		role, exists := c.Get("role")
 		if !exists {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": ErrUnauthorized.Error()})
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 			return
 		}
 
 		roleStr := role.(string)
-		allowed := false
+		isAllowedRole := false
 		for _, r := range allowedRoles {
 			if roleStr == r {
-				allowed = true
+				isAllowedRole = true
 				break
 			}
 		}
 
-		if !allowed {
-			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": ErrForbidden.Error()})
+		if !isAllowedRole {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "You do not have permission to perform this action"})
 			return
 		}
 

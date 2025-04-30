@@ -1,25 +1,32 @@
 package routes
 
 import (
+	"github.com/AsterOzlob/content_managment_api/api/middleware"
 	"github.com/gin-gonic/gin"
 )
 
 func RegisterRoleRoutes(router *gin.Engine, deps *Dependencies) {
 	roleGroup := router.Group("/roles")
 	{
-		// Создание роли
-		roleGroup.POST("", deps.RoleCtrl.CreateRole)
+		// Защищенные эндпоинты
+		protected := roleGroup.Group("/")
+		protected.Use(middleware.AuthMiddleware(deps.JWTConfig)) // Middleware для JWT-аутентификации
+		protected.Use(middleware.RoleMiddleware("admin"))        // Только администраторы имеют доступ
+		{
+			// Создание роли
+			protected.POST("", deps.RoleCtrl.CreateRole)
 
-		// Получение всех ролей
-		roleGroup.GET("", deps.RoleCtrl.GetAllRoles)
+			// Получение всех ролей
+			protected.GET("", deps.RoleCtrl.GetAllRoles)
 
-		// Получение роли по ID
-		roleGroup.GET("/:id", deps.RoleCtrl.GetRoleByID)
+			// Получение роли по ID
+			protected.GET("/:id", deps.RoleCtrl.GetRoleByID)
 
-		// Обновление роли
-		roleGroup.PUT("/:id", deps.RoleCtrl.UpdateRole)
+			// Обновление роли
+			protected.PUT("/:id", deps.RoleCtrl.UpdateRole)
 
-		// Удаление роли
-		roleGroup.DELETE("/:id", deps.RoleCtrl.DeleteRole)
+			// Удаление роли
+			protected.DELETE("/:id", deps.RoleCtrl.DeleteRole)
+		}
 	}
 }

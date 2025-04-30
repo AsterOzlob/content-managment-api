@@ -69,15 +69,16 @@ func (s *AuthService) SignUp(input dto.AuthInput) (*models.User, *AuthTokens, er
 	}
 	user.RoleID = role.ID
 
+	// Создаем пользователя
 	if err := s.userRepo.Create(user); err != nil {
 		return nil, nil, err
 	}
 
+	// Генерируем токены
 	accessToken, err := utils.GenerateAccessToken(user.ID, role.Name, s.JWTConfig)
 	if err != nil {
 		return nil, nil, err
 	}
-
 	refreshToken, err := utils.GenerateRefreshToken(user.ID, s.JWTConfig)
 	if err != nil {
 		return nil, nil, err
@@ -91,7 +92,6 @@ func (s *AuthService) SignUp(input dto.AuthInput) (*models.User, *AuthTokens, er
 		IP:        input.IP,
 		UserAgent: input.UserAgent,
 	}
-
 	if err := s.refreshTokenRepo.Create(rt); err != nil {
 		return nil, nil, err
 	}

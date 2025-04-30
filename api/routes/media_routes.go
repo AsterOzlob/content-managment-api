@@ -20,8 +20,8 @@ func RegisterMediaRoutes(r *gin.Engine, deps *Dependencies) {
 			protected.GET("", middleware.RoleMiddleware("user", "author", "moderator", "admin"), deps.MediaCtrl.GetAllMedia)
 			protected.GET("/:id", middleware.RoleMiddleware("user", "author", "moderator", "admin"), deps.MediaCtrl.GetAllByArticleID)
 
-			// Авторы и администраторы могут удалять файлы
-			protected.DELETE("/:id", middleware.RoleMiddleware("author", "admin"), deps.MediaCtrl.DeleteFile)
+			// Авторы могут удалять только свои файлы, администраторы — любые
+			protected.DELETE("/:id", middleware.OwnershipMiddleware(), middleware.RoleMiddleware("author", "admin"), deps.MediaCtrl.DeleteFile)
 		}
 	}
 }
