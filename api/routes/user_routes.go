@@ -1,17 +1,23 @@
 package routes
 
 import (
+	"github.com/AsterOzlob/content_managment_api/api/middleware"
 	"github.com/gin-gonic/gin"
 )
 
+// RegisterUserRoutes регистрирует маршруты для управления пользователями.
 func RegisterUserRoutes(r *gin.Engine, deps *Dependencies) {
-	// Открытые эндпоинты
-	r.POST("/users/signup", deps.UserCtrl.SignUp)
-	r.POST("/users/login", deps.UserCtrl.Login)
-
-	// Защищённые эндпоинты
-	r.GET("/users/:id", deps.UserCtrl.GetUserByID)
-	r.PATCH("/users/:id/role", deps.UserCtrl.AssignRole)
-	r.DELETE("/users/:id", deps.UserCtrl.DeleteUser)
-	r.GET("/users", deps.UserCtrl.GetAllUsers)
+	user := r.Group("/users")
+	{
+		// Защищенные эндпоинты
+		protected := user.Group("/")
+		protected.Use(middleware.AuthMiddleware(deps.JWTConfig)) // Middleware для JWT-аутентификации
+		{
+			// Временно убрана проверка прав (middleware.RoleMiddleware)
+			protected.GET("/:id", deps.UserCtrl.GetUserByID)
+			protected.PATCH("/:id/role", deps.UserCtrl.AssignRole)
+			protected.DELETE("/:id", deps.UserCtrl.DeleteUser)
+			protected.GET("", deps.UserCtrl.GetAllUsers)
+		}
+	}
 }

@@ -8,6 +8,22 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
+// RegenerateAccessToken создает новый access token с использованием user_id и роли.
+func RegenerateAccessToken(userID uint, role string, cfg *config.JWTConfig) (string, error) {
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"user_id": userID,
+		"role":    role,
+		"exp":     time.Now().Add(time.Duration(cfg.AccessTokenTTL) * time.Minute).Unix(),
+	})
+
+	tokenString, err := token.SignedString([]byte(cfg.AccessTokenSecret))
+	if err != nil {
+		return "", fmt.Errorf("failed to sign access token: %w", err)
+	}
+
+	return tokenString, nil
+}
+
 // GenerateAccessToken создает JWT access token.
 func GenerateAccessToken(userID uint, role string, cfg *config.JWTConfig) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{

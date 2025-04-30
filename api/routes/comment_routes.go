@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"github.com/AsterOzlob/content_managment_api/api/middleware"
 	"github.com/gin-gonic/gin"
 )
 
@@ -10,12 +11,14 @@ func RegisterCommentRoutes(r *gin.Engine, deps *Dependencies) {
 	content := r.Group("/articles")
 	{
 		protected := content.Group("/")
+		protected.Use(middleware.AuthMiddleware(deps.JWTConfig)) // Middleware для JWT-аутентификации
 		{
-			protected.POST("/:id/comments", deps.CommentCtrl.AddCommentToArticle)   // Добавление комментария к статье
-			protected.GET("/:id/comments", deps.CommentCtrl.GetCommentsByArticleID) // Получение всех комментариев к статье
+			// Все аутентифицированные пользователи могут оставлять комментарии
+			protected.POST("/:id/comments", middleware.RoleMiddleware("user", "author", "moderator", "admin"), deps.CommentCtrl.AddCommentToArticle)
+			protected.GET("/:id/comments", middleware.RoleMiddleware("user", "author", "moderator", "admin"), deps.CommentCtrl.GetCommentsByArticleID)
 		}
 	}
 
 	// Глобальные маршруты для комментариев
-	r.DELETE("/comments/:id", deps.CommentCtrl.DeleteComment) // Удаление комментария
+	r.DELETE("/comments/:id", middleware.AuthMiddleware(deps.JWTConfig), middleware.RoleMiddleware("moderator", "admin"), deps.CommentCtrl.DeleteComment) // Удаление комментария
 }

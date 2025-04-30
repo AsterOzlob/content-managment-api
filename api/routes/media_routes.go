@@ -1,24 +1,27 @@
 package routes
 
 import (
+	"github.com/AsterOzlob/content_managment_api/api/middleware"
 	"github.com/gin-gonic/gin"
 )
 
 // RegisterMediaRoutes настраивает маршруты для управления медиафайлами.
 func RegisterMediaRoutes(r *gin.Engine, deps *Dependencies) {
-	// Группа маршрутов для медиафайлов
 	mediaGroup := r.Group("/media")
 	{
-		// Загрузка нового медиафайла
-		mediaGroup.POST("/upload", deps.MediaCtrl.UploadFile)
+		// Защищенные эндпоинты
+		protected := mediaGroup.Group("/")
+		protected.Use(middleware.AuthMiddleware(deps.JWTConfig)) // Middleware для JWT-аутентификации
+		{
+			// Авторы и администраторы могут загружать файлы
+			protected.POST("/upload", middleware.RoleMiddleware("author", "admin"), deps.MediaCtrl.UploadFile)
 
-		// Получение всех медиафайлов
-		mediaGroup.GET("", deps.MediaCtrl.GetAllMedia)
+			// Все аутентифицированные пользователи могут просматривать файлы
+			protected.GET("", middleware.RoleMiddleware("user", "author", "moderator", "admin"), deps.MediaCtrl.GetAllMedia)
+			protected.GET("/:id", middleware.RoleMiddleware("user", "author", "moderator", "admin"), deps.MediaCtrl.GetAllByArticleID)
 
-		// Получение всех медиафайлов для конкретной статьи
-		mediaGroup.GET("/:id", deps.MediaCtrl.GetAllByArticleID)
-
-		// Удаление медиафайла по ID
-		mediaGroup.DELETE("/:id", deps.MediaCtrl.DeleteFile)
+			// Авторы и администраторы могут удалять файлы
+			protected.DELETE("/:id", middleware.RoleMiddleware("author", "admin"), deps.MediaCtrl.DeleteFile)
+		}
 	}
 }
