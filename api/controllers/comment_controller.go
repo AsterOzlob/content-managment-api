@@ -30,6 +30,7 @@ func NewCommentController(service *services.CommentService, logger *logging.Logg
 // @Produce json
 // @Param id path uint true "Article ID"
 // @Param comment body dto.CommentInput true "Comment Data"
+// @Security BearerAuth
 // @Success 201 {object} dto.CommentResponse
 // @Failure 400 {object} map[string]string
 // @Failure 500 {object} map[string]string
@@ -71,6 +72,7 @@ func (c *CommentController) AddCommentToArticle(ctx *gin.Context) {
 // @Tags Comments
 // @Produce json
 // @Param id path uint true "Article ID"
+// @Security BearerAuth
 // @Success 200 {array} dto.CommentResponse
 // @Failure 400 {object} map[string]string
 // @Failure 404 {object} map[string]string
@@ -114,6 +116,7 @@ func (c *CommentController) GetCommentsByArticleID(ctx *gin.Context) {
 // @Tags Comments
 // @Produce json
 // @Param id path uint true "Comment ID"
+// @Security BearerAuth
 // @Success 200 {object} map[string]string
 // @Failure 400 {object} map[string]string
 // @Failure 500 {object} map[string]string

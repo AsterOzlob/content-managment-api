@@ -43,6 +43,7 @@ func NewMediaController(
 // @Produce json
 // @Param article_id formData uint true "Article ID"
 // @Param file formData file true "Media File"
+// @Security BearerAuth
 // @Success 201 {object} dto.MediaResponse
 // @Failure 400 {object} map[string]string
 // @Router /media/upload [post]
@@ -130,6 +131,7 @@ func (c *MediaController) UploadFile(ctx *gin.Context) {
 // @Description Get a list of all uploaded media files.
 // @Tags Media
 // @Produce json
+// @Security BearerAuth
 // @Success 200 {array} dto.MediaResponse
 // @Failure 500 {object} map[string]string
 // @Router /media [get]
@@ -155,6 +157,7 @@ func (c *MediaController) GetAllMedia(ctx *gin.Context) {
 // @Tags Media
 // @Produce json
 // @Param id path uint true "Article ID"
+// @Security BearerAuth
 // @Success 200 {array} dto.MediaResponse
 // @Failure 400 {object} map[string]string
 // @Failure 500 {object} map[string]string
@@ -190,6 +193,7 @@ func (c *MediaController) GetAllByArticleID(ctx *gin.Context) {
 // @Tags Media
 // @Produce json
 // @Param id path uint true "Media ID"
+// @Security BearerAuth
 // @Success 200 {object} map[string]string
 // @Failure 400 {object} map[string]string
 // @Failure 500 {object} map[string]string
