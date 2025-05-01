@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/AsterOzlob/content_managment_api/config"
-	"github.com/AsterOzlob/content_managment_api/utils"
+	"github.com/AsterOzlob/content_managment_api/pkg/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 )

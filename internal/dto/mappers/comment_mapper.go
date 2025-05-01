@@ -1,8 +1,8 @@
 package mappers
 
 import (
+	"github.com/AsterOzlob/content_managment_api/internal/database/models"
 	"github.com/AsterOzlob/content_managment_api/internal/dto"
-	"github.com/AsterOzlob/content_managment_api/internal/models"
 )
 
 // MapToCommentResponse преобразует модель Comment в DTO CommentResponse.
@@ -22,4 +22,15 @@ func MapToCommentResponse(comment *models.Comment) dto.CommentResponse {
 		UpdatedAt: comment.UpdatedAt,
 		Replies:   replies,
 	}
+}
+
+// MapToCommentListResponse преобразует список моделей Comment в список DTO CommentResponse.
+func MapToCommentListResponse(comments []*models.Comment) []dto.CommentResponse {
+	dtoComments := make([]dto.CommentResponse, 0, len(comments))
+
+	for _, comment := range comments {
+		dtoComments = append(dtoComments, MapToCommentResponse(comment))
+	}
+
+	return dtoComments
 }

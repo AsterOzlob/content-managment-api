@@ -4,41 +4,33 @@ import (
 	"fmt"
 	"os"
 
-	logging "github.com/AsterOzlob/content_managment_api/logger"
-	"github.com/sirupsen/logrus"
+	logger "github.com/AsterOzlob/content_managment_api/internal/logger"
 )
 
 // Config объединяет все конфигурации приложения.
 type Config struct {
-	DBConfig    *DBConfig    // Конфигурация базы данных.
-	JWTConfig   *JWTConfig   // Конфигурация JWT.
-	MediaConfig *MediaConfig // Конфигурая медиа файлов
+	DBConfig    *DBConfig
+	JWTConfig   *JWTConfig
+	MediaConfig *MediaConfig
 }
 
 // LoadConfig загружает общую конфигурацию приложения.
-func LoadConfig(logger *logging.Logger) (*Config, error) {
-	// Загрузка конфигураций
+func LoadConfig(logger logger.Logger) (*Config, error) {
 	dbConfig, err := LoadDBConfig(logger)
 	if err != nil {
-		logger.Log(logrus.ErrorLevel, "Failed to load DB config", map[string]interface{}{
-			"error": err.Error(),
-		})
+		logger.WithError(err).Error("Failed to load DB config")
 		return nil, fmt.Errorf("failed to load DB config: %w", err)
 	}
 
 	jwtConfig, err := LoadJWTConfig(logger)
 	if err != nil {
-		logger.Log(logrus.ErrorLevel, "Failed to load JWT config", map[string]interface{}{
-			"error": err.Error(),
-		})
+		logger.WithError(err).Error("Failed to load JWT config")
 		return nil, fmt.Errorf("failed to load JWT config: %w", err)
 	}
 
 	mediaConfig, err := LoadMediaConfig(logger)
 	if err != nil {
-		logger.Log(logrus.ErrorLevel, "Failed to load Media config", map[string]interface{}{
-			"error": err.Error(),
-		})
+		logger.WithError(err).Error("Failed to load Media config")
 		return nil, fmt.Errorf("failed to load Media config: %w", err)
 	}
 

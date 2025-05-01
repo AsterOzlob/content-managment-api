@@ -6,20 +6,20 @@ import (
 
 	"github.com/AsterOzlob/content_managment_api/internal/dto"
 	"github.com/AsterOzlob/content_managment_api/internal/dto/mappers"
+	logger "github.com/AsterOzlob/content_managment_api/internal/logger"
 	"github.com/AsterOzlob/content_managment_api/internal/services"
-	logging "github.com/AsterOzlob/content_managment_api/logger"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 )
 
 // ArticleController предоставляет методы для управления статьями через HTTP API.
 type ArticleController struct {
-	service *services.ArticleService // service - экземпляр ArticleService для выполнения бизнес-логики.
-	Logger  *logging.Logger          // Logger - экземпляр логгера для ArticleController.
+	service *services.ArticleService
+	Logger  logger.Logger // Теперь используется интерфейс, а не указатель
 }
 
-// NewArticleController создает новый экземпляр ArticleController.
-func NewArticleController(service *services.ArticleService, logger *logging.Logger) *ArticleController {
+// NewArticleController создаёт новый экземпляр ArticleController.
+func NewArticleController(service *services.ArticleService, logger logger.Logger) *ArticleController {
 	return &ArticleController{service: service, Logger: logger}
 }
 
@@ -36,17 +36,15 @@ func NewArticleController(service *services.ArticleService, logger *logging.Logg
 func (c *ArticleController) CreateArticle(ctx *gin.Context) {
 	var input dto.ArticleInput
 	if err := ctx.ShouldBindJSON(&input); err != nil {
-		c.Logger.Log(logrus.ErrorLevel, "Failed to bind JSON", map[string]interface{}{
-			"error": err.Error(),
-		})
+		c.Logger.WithError(err).Error("Failed to bind JSON")
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.Logger.Log(logrus.InfoLevel, "Creating new article", map[string]interface{}{
+	c.Logger.WithFields(logrus.Fields{
 		"author_id": input.AuthorID,
 		"title":     input.Title,
-	})
+	}).Info("Creating new article")
 
 	// Создаем новую статью
 	article, err := c.service.CreateArticle(dto.ArticleInput{
@@ -57,9 +55,7 @@ func (c *ArticleController) CreateArticle(ctx *gin.Context) {
 		MediaIDs:  input.MediaIDs,
 	})
 	if err != nil {
-		c.Logger.Log(logrus.ErrorLevel, "Failed to create article", map[string]interface{}{
-			"error": err.Error(),
-		})
+		c.Logger.WithError(err).Error("Failed to create article")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -76,28 +72,20 @@ func (c *ArticleController) CreateArticle(ctx *gin.Context) {
 // @Failure 500 {object} map[string]string
 // @Router /articles [get]
 func (c *ArticleController) GetAllArticles(ctx *gin.Context) {
-	c.Logger.Log(logrus.InfoLevel, "Fetching all articles", nil)
+	c.Logger.Info("Fetching all articles")
 
 	articles, err := c.service.GetAllArticles()
 	if err != nil {
-		c.Logger.Log(logrus.ErrorLevel, "Failed to fetch all articles", map[string]interface{}{
-			"error": err.Error(),
-		})
+		c.Logger.WithError(err).Error("Failed to fetch all articles")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Преобразуем модели в DTO
-	var dtoArticles []*dto.ArticleResponse
-	for _, article := range articles {
-		dtoArticles = append(dtoArticles, mappers.MapToArticleResponse(article))
-	}
-
-	ctx.JSON(http.StatusOK, dtoArticles)
+	ctx.JSON(http.StatusOK, mappers.MapToArticleListResponse(articles))
 }
 
 // @Summary Get article by ID
-// @Description Get a specific article by ID with media and comments.
+// @Description Get specific article by ID with media and comments.
 // @Tags Articles
 // @Produce json
 // @Param id path uint true "Article ID"
@@ -109,22 +97,16 @@ func (c *ArticleController) GetArticleByID(ctx *gin.Context) {
 	idStr := ctx.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
-		c.Logger.Log(logrus.ErrorLevel, "Invalid article ID", map[string]interface{}{
-			"error": err.Error(),
-		})
+		c.Logger.WithField("id", idStr).Error("Invalid article ID")
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid article ID"})
 		return
 	}
 
-	c.Logger.Log(logrus.InfoLevel, "Fetching article by ID", map[string]interface{}{
-		"article_id": id,
-	})
+	c.Logger.WithField("article_id", id).Info("Fetching article by ID")
 
 	article, err := c.service.GetArticleByID(uint(id))
 	if err != nil {
-		c.Logger.Log(logrus.ErrorLevel, "Failed to fetch article by ID", map[string]interface{}{
-			"error": err.Error(),
-		})
+		c.Logger.WithError(err).Error("Failed to fetch article by ID")
 		ctx.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}
@@ -144,42 +126,36 @@ func (c *ArticleController) GetArticleByID(ctx *gin.Context) {
 // @Success 200 {object} dto.ArticleResponse
 // @Failure 400 {object} map[string]string
 // @Failure 404 {object} map[string]string
+// @Failure 500 {object} map[string]string
 // @Router /articles/{id} [put]
 func (c *ArticleController) UpdateArticle(ctx *gin.Context) {
 	idStr := ctx.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
-		c.Logger.Log(logrus.ErrorLevel, "Invalid article ID", map[string]interface{}{
-			"error": err.Error(),
-		})
+		c.Logger.WithField("id", idStr).Error("Invalid article ID")
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid article ID"})
 		return
 	}
 
 	var input dto.ArticleInput
 	if err := ctx.ShouldBindJSON(&input); err != nil {
-		c.Logger.Log(logrus.ErrorLevel, "Failed to bind JSON", map[string]interface{}{
-			"error": err.Error(),
-		})
+		c.Logger.WithError(err).Error("Failed to bind JSON")
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.Logger.Log(logrus.InfoLevel, "Updating article", map[string]interface{}{
+	c.Logger.WithFields(logrus.Fields{
 		"article_id": id,
 		"title":      input.Title,
-	})
+	}).Info("Updating article")
 
 	article, err := c.service.UpdateArticle(uint(id), input)
 	if err != nil {
-		c.Logger.Log(logrus.ErrorLevel, "Failed to update article", map[string]interface{}{
-			"error": err.Error(),
-		})
+		c.Logger.WithError(err).Error("Failed to update article")
 		ctx.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Преобразуем модель в DTO
 	ctx.JSON(http.StatusOK, mappers.MapToArticleResponse(article))
 }
 
@@ -192,26 +168,21 @@ func (c *ArticleController) UpdateArticle(ctx *gin.Context) {
 // @Success 200 {object} map[string]string
 // @Failure 400 {object} map[string]string
 // @Failure 404 {object} map[string]string
+// @Failure 500 {object} map[string]string
 // @Router /articles/{id} [delete]
 func (c *ArticleController) DeleteArticle(ctx *gin.Context) {
 	idStr := ctx.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
-		c.Logger.Log(logrus.ErrorLevel, "Invalid article ID", map[string]interface{}{
-			"error": err.Error(),
-		})
+		c.Logger.WithField("id", idStr).Error("Invalid article ID")
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid article ID"})
 		return
 	}
 
-	c.Logger.Log(logrus.InfoLevel, "Deleting article", map[string]interface{}{
-		"article_id": id,
-	})
+	c.Logger.WithField("article_id", id).Info("Deleting article")
 
 	if err := c.service.DeleteArticle(uint(id)); err != nil {
-		c.Logger.Log(logrus.ErrorLevel, "Failed to delete article", map[string]interface{}{
-			"error": err.Error(),
-		})
+		c.Logger.WithError(err).Error("Failed to delete article")
 		ctx.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	logging "github.com/AsterOzlob/content_managment_api/logger"
+	logger "github.com/AsterOzlob/content_managment_api/internal/logger"
 )
 
 // MediaConfig содержит настройки для работы с медиафайлами.
@@ -15,18 +15,22 @@ type MediaConfig struct {
 }
 
 // LoadMediaConfig загружает конфигурацию для медиафайлов.
-func LoadMediaConfig(logger *logging.Logger) (*MediaConfig, error) {
+func LoadMediaConfig(logger logger.Logger) (*MediaConfig, error) {
 	storagePath := getEnv("MEDIA_STORAGE_PATH", "./uploads")
-	allowedTypes := getEnv("MEDIA_ALLOWED_TYPES", "image/jpeg,image/png,application/pdf")
-	maxSize := getEnv("MEDIA_MAX_SIZE", "5242880") // Default: 5 MB
+	allowedTypesStr := getEnv("MEDIA_ALLOWED_TYPES", "image/jpeg,image/png,application/pdf")
+	maxSizeStr := getEnv("MEDIA_MAX_SIZE", "5242880") // Default: 5 MB (5_242_880 байт)
 
-	// Преобразование maxSize в int64
+	// Парсинг MaxSize
 	var maxSizeInt int64
-	fmt.Sscanf(maxSize, "%d", &maxSizeInt)
+	_, err := fmt.Sscanf(maxSizeStr, "%d", &maxSizeInt)
+	if err != nil {
+		logger.WithError(err).Warn("Invalid MEDIA_MAX_SIZE value, using default 5 MB (5242880 bytes)")
+		maxSizeInt = 5242880
+	}
 
 	return &MediaConfig{
 		StoragePath:  storagePath,
-		AllowedTypes: splitString(allowedTypes, ","),
+		AllowedTypes: splitString(allowedTypesStr, ","),
 		MaxSize:      maxSizeInt,
 	}, nil
 }

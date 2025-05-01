@@ -6,53 +6,54 @@ import (
 
 	"github.com/AsterOzlob/content_managment_api/internal/dto"
 	"github.com/AsterOzlob/content_managment_api/internal/dto/mappers"
+	logger "github.com/AsterOzlob/content_managment_api/internal/logger"
 	"github.com/AsterOzlob/content_managment_api/internal/services"
-	logging "github.com/AsterOzlob/content_managment_api/logger"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 )
 
+// UserController provides methods for managing users via the HTTP API.
 type UserController struct {
 	service *services.UserService
-	Logger  *logging.Logger
+	Logger  logger.Logger
 }
 
-func NewUserController(service *services.UserService, logger *logging.Logger) *UserController {
-	return &UserController{service: service, Logger: logger}
+// NewUserController creates a new instance of UserController.
+func NewUserController(service *services.UserService, logger logger.Logger) *UserController {
+	return &UserController{
+		service: service,
+		Logger:  logger,
+	}
 }
 
-// @Summary Получение всех пользователей
-// @Description Возвращает список всех пользователей в системе.
+// @Summary Get all users
+// @Description Get a list of all users in the system.
 // @Tags Users
 // @Produce json
 // @Security BearerAuth
-// @Success 200 {array} dto.UserResponse "Список пользователей"
+// @Success 200 {array} dto.UserResponse "List of users"
 // @Failure 500 {object} map[string]string "Internal server error"
 // @Router /users [get]
 func (c *UserController) GetAllUsers(ctx *gin.Context) {
+	c.Logger.Info("Fetching all users in controller")
+
 	users, err := c.service.GetAllUsers()
 	if err != nil {
-		c.Logger.Log(logrus.ErrorLevel, "Failed to fetch all users in service", map[string]interface{}{
-			"error": err.Error(),
-		})
+		c.Logger.WithError(err).Error("Failed to fetch all users in service")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	var userResponses []*dto.UserResponse
-	for _, user := range users {
-		userResponses = append(userResponses, mappers.MapToUserResponse(user))
-	}
-	ctx.JSON(http.StatusOK, userResponses)
+	ctx.JSON(http.StatusOK, mappers.MapToUserListResponse(users))
 }
 
-// @Summary Получение пользователя по ID
-// @Description Возвращает пользователя по его уникальному идентификатору.
+// @Summary Get user by ID
+// @Description Get a user by their unique identifier.
 // @Tags Users
 // @Produce json
 // @Param id path uint true "User ID"
 // @Security BearerAuth
-// @Success 200 {object} dto.UserResponse "Информация о пользователе"
+// @Success 200 {object} dto.UserResponse "User details"
 // @Failure 400 {object} map[string]string "Invalid user ID"
 // @Failure 404 {object} map[string]string "User not found"
 // @Failure 500 {object} map[string]string "Internal server error"
@@ -61,92 +62,91 @@ func (c *UserController) GetUserByID(ctx *gin.Context) {
 	idStr := ctx.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
-		c.Logger.Log(logrus.ErrorLevel, "Invalid user ID in GetUserByID", map[string]interface{}{
-			"error": err.Error(),
-		})
+		c.Logger.WithError(err).Error("Invalid user ID in GetUserByID")
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid user ID"})
 		return
 	}
 
+	c.Logger.WithField("user_id", id).Info("Fetching user by ID")
+
 	user, err := c.service.GetUserByID(uint(id))
 	if err != nil {
-		c.Logger.Log(logrus.ErrorLevel, "Failed to fetch user by ID in service", map[string]interface{}{
-			"error": err.Error(),
-		})
-		ctx.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		c.Logger.WithError(err).Error("Failed to fetch user by ID in service")
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
 		return
 	}
+
 	ctx.JSON(http.StatusOK, mappers.MapToUserResponse(user))
 }
 
-// @Summary Удаление пользователя
-// @Description Удаляет пользователя по его уникальному идентификатору.
+// @Summary Delete a user
+// @Description Delete a user by their unique identifier.
 // @Tags Users
+// @Produce json
 // @Param id path uint true "User ID"
 // @Security BearerAuth
-// @Success 200 {object} map[string]string "Пользователь удален"
+// @Success 200 {object} map[string]string "User deleted successfully"
 // @Failure 400 {object} map[string]string "Invalid user ID"
 // @Failure 500 {object} map[string]string "Internal server error"
 // @Router /users/{id} [delete]
 func (c *UserController) DeleteUser(ctx *gin.Context) {
-	targetUserIDStr := ctx.Param("id")
-	targetUserID, err := strconv.ParseUint(targetUserIDStr, 10, 64)
+	idStr := ctx.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
-		c.Logger.Log(logrus.ErrorLevel, "Invalid user ID in DeleteUser", map[string]interface{}{
-			"error": err.Error(),
-		})
+		c.Logger.WithError(err).Error("Invalid user ID in DeleteUser")
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid user ID"})
 		return
 	}
 
-	if err := c.service.DeleteUser(uint(targetUserID)); err != nil {
-		c.Logger.Log(logrus.ErrorLevel, "Failed to delete user in service", map[string]interface{}{
-			"error": err.Error(),
-		})
+	c.Logger.WithField("target_user_id", id).Info("Deleting user")
+
+	if err := c.service.DeleteUser(uint(id)); err != nil {
+		c.Logger.WithError(err).Error("Failed to delete user in service")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
 	ctx.JSON(http.StatusOK, gin.H{"message": "user deleted"})
 }
 
-// @Summary Назначение роли пользователю
-// @Description Назначает роль пользователю по его уникальному идентификатору.
+// @Summary Assign role to a user
+// @Description Assigns a role to a user by their unique identifier.
 // @Tags Users
 // @Accept json
 // @Produce json
 // @Param id path uint true "User ID"
 // @Param role body dto.UserRoleAssignmentInput true "Role name to assign"
 // @Security BearerAuth
-// @Success 200 {object} map[string]string "Роль назначена"
+// @Success 200 {object} map[string]string "Role assigned"
 // @Failure 400 {object} map[string]string "Invalid input data or user ID"
-// @Failure 500 {object} map[string]string "Internal server error"
+// @Failure 500 {object} map[string]string "Failed to assign role"
 // @Router /users/{id}/role [patch]
 func (c *UserController) AssignRole(ctx *gin.Context) {
-	targetUserIDStr := ctx.Param("id")
-	targetUserID, err := strconv.ParseUint(targetUserIDStr, 10, 64)
+	idStr := ctx.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
-		c.Logger.Log(logrus.ErrorLevel, "Invalid target user ID in AssignRole", map[string]interface{}{
-			"error": err.Error(),
-		})
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid target user ID"})
+		c.Logger.WithError(err).Error("Invalid target user ID in AssignRole")
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid user ID"})
 		return
 	}
 
 	var input dto.UserRoleAssignmentInput
 	if err := ctx.ShouldBindJSON(&input); err != nil {
-		c.Logger.Log(logrus.ErrorLevel, "Failed to bind JSON in AssignRole", map[string]interface{}{
-			"error": err.Error(),
-		})
+		c.Logger.WithError(err).Error("Failed to bind JSON in AssignRole")
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	if err := c.service.AssignRole(uint(targetUserID), input.RoleName); err != nil {
-		c.Logger.Log(logrus.ErrorLevel, "Failed to assign role in service", map[string]interface{}{
-			"error": err.Error(),
-		})
+	c.Logger.WithFields(logrus.Fields{
+		"user_id":  id,
+		"new_role": input.RoleName,
+	}).Info("Assigning role to user")
+
+	if err := c.service.AssignRole(uint(id), input.RoleName); err != nil {
+		c.Logger.WithError(err).Error("Failed to assign role in service")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
 	ctx.JSON(http.StatusOK, gin.H{"message": "role assigned"})
 }

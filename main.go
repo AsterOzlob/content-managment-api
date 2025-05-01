@@ -26,11 +26,11 @@ import (
 	"github.com/AsterOzlob/content_managment_api/api/routes"
 	"github.com/AsterOzlob/content_managment_api/config"
 	_ "github.com/AsterOzlob/content_managment_api/docs"
-	"github.com/AsterOzlob/content_managment_api/internal/repositories"
+	"github.com/AsterOzlob/content_managment_api/internal/database"
+	"github.com/AsterOzlob/content_managment_api/internal/database/repositories"
+	logger "github.com/AsterOzlob/content_managment_api/internal/logger"
 	"github.com/AsterOzlob/content_managment_api/internal/services"
-	logging "github.com/AsterOzlob/content_managment_api/logger"
 	"github.com/gin-gonic/gin"
-	"github.com/sirupsen/logrus"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 	"gorm.io/gorm"
@@ -38,12 +38,13 @@ import (
 
 func main() {
 	// Создаем экземпляр логгера для основного приложения.
-	appLogger := logging.NewLogger("logs/app.log")
-	appLogger.Log(logrus.InfoLevel, "Starting application", nil)
+	appLogger := logger.NewLogger("logs/app.log")
+	appLogger.Info("Starting application")
 
 	// Инициализация приложения: загрузка конфигурации, подключение к базе данных и миграции.
 	cfg, dbConn := initializeApp(appLogger)
 	if cfg == nil || dbConn == nil {
+		appLogger.Error("Failed to initialize application")
 		return
 	}
 
@@ -58,45 +59,35 @@ func main() {
 
 	// Определяем адрес сервера и запускаем HTTP-сервер.
 	serverAddress := ":8080"
-	appLogger.Log(logrus.InfoLevel, "Starting HTTP server", map[string]interface{}{
-		"address": serverAddress,
-	})
+	appLogger.WithField("address", serverAddress).Info("Starting HTTP server")
 	if err := r.Run(serverAddress); err != nil {
-		appLogger.Log(logrus.ErrorLevel, "Failed to start HTTP server", map[string]interface{}{
-			"error": err.Error(),
-		})
+		appLogger.WithError(err).Error("Failed to start HTTP server")
 		return
 	}
 
-	appLogger.Log(logrus.InfoLevel, "Application started successfully!", nil)
+	appLogger.Info("Application started successfully!")
 }
 
 // initializeApp выполняет начальную настройку приложения:
 // загрузку конфигурации, подключение к базе данных и выполнение миграций.
-func initializeApp(logger *logging.Logger) (*config.Config, *gorm.DB) {
+func initializeApp(logger logger.Logger) (*config.Config, *gorm.DB) {
 	// Загрузка конфигурации из .env файла или переменных окружения.
 	cfg, err := config.LoadConfig(logger)
 	if err != nil {
-		logger.Log(logrus.ErrorLevel, "Error loading config", map[string]interface{}{
-			"error": err.Error(),
-		})
+		logger.WithError(err).Error("Error loading config")
 		return nil, nil
 	}
 
 	// Инициализация подключения к базе данных PostgreSQL через GORM.
-	dbConn, err := config.InitDB(cfg.DBConfig, logger)
+	dbConn, err := database.InitDB(cfg.DBConfig, logger)
 	if err != nil {
-		logger.Log(logrus.ErrorLevel, "Error initializing database connection", map[string]interface{}{
-			"error": err.Error(),
-		})
+		logger.WithError(err).Error("Error initializing database connection")
 		return nil, nil
 	}
 
 	// Выполнение миграций для создания таблиц в базе данных.
-	if err := config.MigrateModels(dbConn, logger); err != nil {
-		logger.Log(logrus.ErrorLevel, "Error migrating models", map[string]interface{}{
-			"error": err.Error(),
-		})
+	if err := database.MigrateModels(dbConn, logger); err != nil {
+		logger.WithError(err).Error("Error migrating models")
 		return nil, nil
 	}
 
@@ -107,12 +98,12 @@ func initializeApp(logger *logging.Logger) (*config.Config, *gorm.DB) {
 // репозитории, сервисы и контроллеры.
 func setupDependencies(dbConn *gorm.DB, cfg *config.Config) *routes.Dependencies {
 	// Создаем отдельные логгеры для каждой области.
-	authLogger := logging.NewLogger("logs/auth.log")
-	userLogger := logging.NewLogger("logs/users.log")
-	articleLogger := logging.NewLogger("logs/articles.log")
-	commentLogger := logging.NewLogger("logs/comments.log")
-	mediaLogger := logging.NewLogger("logs/media.log")
-	roleLogger := logging.NewLogger("logs/role.log")
+	authLogger := logger.NewLogger("logs/auth.log")
+	userLogger := logger.NewLogger("logs/users.log")
+	articleLogger := logger.NewLogger("logs/articles.log")
+	commentLogger := logger.NewLogger("logs/comments.log")
+	mediaLogger := logger.NewLogger("logs/media.log")
+	roleLogger := logger.NewLogger("logs/roles.log")
 
 	// Инициализация репозиториев.
 	userRepo := repositories.NewUserRepository(dbConn, userLogger)
@@ -147,12 +138,12 @@ func setupDependencies(dbConn *gorm.DB, cfg *config.Config) *routes.Dependencies
 		MediaCtrl:        mediaCtrl,
 		RoleCtrl:         roleCtrl,
 		JWTConfig:        cfg.JWTConfig,
-		RefreshTokenRepo: refreshTokenRepo, // Добавляем репозиторий refresh токенов
+		RefreshTokenRepo: refreshTokenRepo,
 	}
 }
 
 // setupRouter настраивает маршрутизатор Gin и определяет эндпоинты API.
-func setupRouter(deps *routes.Dependencies, logger *logging.Logger) *gin.Engine {
+func setupRouter(deps *routes.Dependencies, logger logger.Logger) *gin.Engine {
 	// Создаем новый экземпляр маршрутизатора Gin.
 	r := gin.Default()
 
@@ -160,28 +151,22 @@ func setupRouter(deps *routes.Dependencies, logger *logging.Logger) *gin.Engine 
 	routes.SetupRoutes(r, deps)
 
 	// Добавляем эндпоинт для просмотра Swagger-документации.
-	r.GET("/swagger/*any", ginSwagger.WrapHandler(
-		swaggerFiles.Handler,
-		ginSwagger.InstanceName("swagger"),
-		ginSwagger.DocExpansion("none"), // Отключаем автоматическое раскрытие всех секций документации.
-	))
-	logger.Log(logrus.InfoLevel, "Swagger documentation endpoint configured", nil)
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	logger.Info("Swagger documentation endpoint configured")
 
-	return r // Возвращаем настроенный маршрутизатор.
+	return r
 }
 
 // startTokenCleanupScheduler запускает планировщик для очистки истекших токенов.
-func startTokenCleanupScheduler(refreshTokenRepo *repositories.RefreshTokenRepository, logger *logging.Logger) {
+func startTokenCleanupScheduler(refreshTokenRepo *repositories.RefreshTokenRepository, logger logger.Logger) {
 	go func() {
 		for {
-			time.Sleep(1 * time.Hour) // Запуск каждыq час
-			logger.Log(logrus.InfoLevel, "Running scheduled cleanup of expired refresh tokens", nil)
+			time.Sleep(1 * time.Hour) // Запуск каждый час
+			logger.Info("Running scheduled cleanup of expired refresh tokens")
 			if err := refreshTokenRepo.CleanupExpiredTokens(); err != nil {
-				logger.Log(logrus.ErrorLevel, "Error during cleanup of expired refresh tokens", map[string]interface{}{
-					"error": err.Error(),
-				})
+				logger.WithError(err).Error("Error during cleanup of expired refresh tokens")
 			} else {
-				logger.Log(logrus.InfoLevel, "Successfully cleaned up expired refresh tokens", nil)
+				logger.Info("Successfully cleaned up expired refresh tokens")
 			}
 		}
 	}()

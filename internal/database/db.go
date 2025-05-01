@@ -1,18 +1,20 @@
-package config
+package database
 
 import (
 	"fmt"
+	"os"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
-	"github.com/AsterOzlob/content_managment_api/internal/models"
-	logging "github.com/AsterOzlob/content_managment_api/logger"
+	"github.com/AsterOzlob/content_managment_api/config"
+	"github.com/AsterOzlob/content_managment_api/internal/database/models"
+	logger "github.com/AsterOzlob/content_managment_api/internal/logger"
 	"github.com/sirupsen/logrus"
 )
 
 // InitDB инициализирует подключение к базе данных.
-func InitDB(dbConfig *DBConfig, logger *logging.Logger) (*gorm.DB, error) {
+func InitDB(dbConfig *config.DBConfig, logger logger.Logger) (*gorm.DB, error) {
 	// Формирование строки подключения (DSN)
 	dsn := fmt.Sprintf("host=%s port=%s user=%s dbname=%s sslmode=%s password=%s",
 		dbConfig.DBHost,
@@ -26,28 +28,26 @@ func InitDB(dbConfig *DBConfig, logger *logging.Logger) (*gorm.DB, error) {
 	// Подключение к базе данных
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
-		logger.Log(logrus.ErrorLevel, "Failed to connect to database", map[string]interface{}{
+		logger.WithFields(logrus.Fields{
 			"dsn":   dsn,
 			"error": err.Error(),
-		})
+		}).Error("Failed to connect to database")
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
 
 	// Проверка соединения
 	sqlDB, _ := db.DB()
 	if err := sqlDB.Ping(); err != nil {
-		logger.Log(logrus.ErrorLevel, "Failed to ping database", map[string]interface{}{
-			"error": err.Error(),
-		})
+		logger.WithError(err).Error("Failed to ping database")
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
-	logger.Log(logrus.InfoLevel, "Database connection established successfully!", nil)
+	logger.Info("Database connection established successfully!")
 	return db, nil
 }
 
 // MigrateModels выполняет миграцию моделей.
-func MigrateModels(db *gorm.DB, logger *logging.Logger) error {
+func MigrateModels(db *gorm.DB, logger logger.Logger) error {
 	models := []interface{}{
 		&models.User{},
 		&models.Role{},
@@ -59,12 +59,18 @@ func MigrateModels(db *gorm.DB, logger *logging.Logger) error {
 
 	// Миграция моделей
 	if err := db.AutoMigrate(models...); err != nil {
-		logger.Log(logrus.ErrorLevel, "Failed to migrate models", map[string]interface{}{
-			"error": err.Error(),
-		})
+		logger.WithError(err).Error("Failed to migrate models")
 		return fmt.Errorf("failed to migrate models: %w", err)
 	}
 
-	logger.Log(logrus.InfoLevel, "Database migrations completed successfully!", nil)
+	logger.Info("Database migrations completed successfully!")
 	return nil
+}
+
+// Вспомогательная функция для получения переменной окружения с fallback-значением.
+func getEnv(key, fallback string) string {
+	if value, exists := os.LookupEnv(key); exists {
+		return value
+	}
+	return fallback
 }

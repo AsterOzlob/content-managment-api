@@ -1,8 +1,8 @@
 package mappers
 
 import (
+	"github.com/AsterOzlob/content_managment_api/internal/database/models"
 	"github.com/AsterOzlob/content_managment_api/internal/dto"
-	"github.com/AsterOzlob/content_managment_api/internal/models"
 )
 
 // MapToUserResponse преобразует модель User в DTO UserResponse (без токенов).
@@ -15,4 +15,16 @@ func MapToUserResponse(user *models.User) *dto.UserResponse {
 		CreatedAt: user.CreatedAt,
 		UpdatedAt: user.UpdatedAt,
 	}
+}
+
+// MapToUserListResponse преобразует список пользователей в список DTO.
+func MapToUserListResponse(users []*models.User) []dto.UserResponse {
+	dtoUsers := make([]dto.UserResponse, 0, len(users))
+
+	for _, user := range users {
+		dtoUser := MapToUserResponse(user)
+		dtoUsers = append(dtoUsers, *dtoUser)
+	}
+
+	return dtoUsers
 }

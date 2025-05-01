@@ -3,7 +3,8 @@ package routes
 import (
 	"github.com/AsterOzlob/content_managment_api/api/controllers"
 	"github.com/AsterOzlob/content_managment_api/config"
-	"github.com/AsterOzlob/content_managment_api/internal/repositories"
+	"github.com/AsterOzlob/content_managment_api/internal/database/repositories"
+
 	"github.com/gin-gonic/gin"
 )
 

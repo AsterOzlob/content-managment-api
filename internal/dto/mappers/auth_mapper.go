@@ -1,8 +1,8 @@
 package mappers
 
 import (
+	"github.com/AsterOzlob/content_managment_api/internal/database/models"
 	"github.com/AsterOzlob/content_managment_api/internal/dto"
-	"github.com/AsterOzlob/content_managment_api/internal/models"
 )
 
 // MapToAuthResponse преобразует пользователя и токены в DTO для ответа.

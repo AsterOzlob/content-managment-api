@@ -5,18 +5,18 @@ import (
 	"time"
 
 	"github.com/AsterOzlob/content_managment_api/config"
+	"github.com/AsterOzlob/content_managment_api/internal/database/models"
+	"github.com/AsterOzlob/content_managment_api/internal/database/repositories"
 	"github.com/AsterOzlob/content_managment_api/internal/dto"
-	"github.com/AsterOzlob/content_managment_api/internal/models"
-	"github.com/AsterOzlob/content_managment_api/internal/repositories"
-	logging "github.com/AsterOzlob/content_managment_api/logger"
-	"github.com/AsterOzlob/content_managment_api/utils"
+	logger "github.com/AsterOzlob/content_managment_api/internal/logger"
+	"github.com/AsterOzlob/content_managment_api/pkg/utils"
 	"github.com/sirupsen/logrus"
 )
 
 type AuthService struct {
 	userRepo         *repositories.UserRepository
 	refreshTokenRepo *repositories.RefreshTokenRepository
-	Logger           *logging.Logger
+	Logger           logger.Logger
 	JWTConfig        *config.JWTConfig
 }
 
@@ -28,7 +28,7 @@ type AuthTokens struct {
 func NewAuthService(
 	userRepo *repositories.UserRepository,
 	refreshTokenRepo *repositories.RefreshTokenRepository,
-	logger *logging.Logger,
+	logger logger.Logger,
 	jwtConfig *config.JWTConfig,
 ) *AuthService {
 	return &AuthService{
@@ -41,10 +41,10 @@ func NewAuthService(
 
 // SignUp регистрирует нового пользователя и создает токены.
 func (s *AuthService) SignUp(input dto.AuthInput) (*models.User, *AuthTokens, error) {
-	s.Logger.Log(logrus.InfoLevel, "Registering new user in service", map[string]interface{}{
+	s.Logger.WithFields(logrus.Fields{
 		"username": input.Username,
 		"email":    input.Email,
-	})
+	}).Info("Registering new user in service")
 
 	hashedPassword, err := utils.HashPassword(input.Password)
 	if err != nil {
@@ -62,9 +62,7 @@ func (s *AuthService) SignUp(input dto.AuthInput) (*models.User, *AuthTokens, er
 	var role models.Role
 	result := s.userRepo.DB.Where("name = ?", roleName).First(&role)
 	if result.Error != nil {
-		s.Logger.Log(logrus.ErrorLevel, "Failed to assign default role", map[string]interface{}{
-			"error": result.Error.Error(),
-		})
+		s.Logger.WithError(result.Error).Error("Failed to assign default role")
 		return nil, nil, errors.New("failed to assign default role")
 	}
 	user.RoleID = role.ID
@@ -99,20 +97,18 @@ func (s *AuthService) SignUp(input dto.AuthInput) (*models.User, *AuthTokens, er
 	return user, &AuthTokens{AccessToken: accessToken, RefreshToken: refreshToken}, nil
 }
 
-// Login аутентифицирует пользователя и создает токены.
+// Login аутентифицирует пользователя и создаёт токены.
 func (s *AuthService) Login(input dto.AuthInput) (*models.User, *AuthTokens, error) {
-	s.Logger.Log(logrus.InfoLevel, "Authenticating user in service", map[string]interface{}{
-		"email": input.Email,
-	})
+	s.Logger.WithField("email", input.Email).Info("Authenticating user in service")
 
 	user, err := s.userRepo.GetByEmail(input.Email)
 	if err != nil {
-		s.Logger.Log(logrus.WarnLevel, "User not found during login", nil)
+		s.Logger.Warn("User not found during login")
 		return nil, nil, errors.New("invalid credentials")
 	}
 
 	if err := utils.CheckPasswordHash(input.Password, user.PasswordHash); err != nil {
-		s.Logger.Log(logrus.WarnLevel, "Invalid password during authentication", nil)
+		s.Logger.Warn("Invalid password during authentication")
 		return nil, nil, errors.New("invalid credentials")
 	}
 
@@ -130,7 +126,7 @@ func (s *AuthService) Login(input dto.AuthInput) (*models.User, *AuthTokens, err
 		}, nil
 	}
 
-	// Создаем новые токены, если старых нет или они истекли
+	// Создаём новые токены, если старых нет или они истекли
 	accessToken, err := utils.GenerateAccessToken(user.ID, user.Role.Name, s.JWTConfig)
 	if err != nil {
 		return nil, nil, err
@@ -158,29 +154,25 @@ func (s *AuthService) Login(input dto.AuthInput) (*models.User, *AuthTokens, err
 
 // RefreshToken обновляет access token с использованием refresh token.
 func (s *AuthService) RefreshToken(refreshTokenString string) (*AuthTokens, error) {
-	s.Logger.Log(logrus.InfoLevel, "Refreshing token in service", map[string]interface{}{
-		"refresh_token": refreshTokenString,
-	})
+	s.Logger.WithField("refresh_token", refreshTokenString).Info("Refreshing token in service")
 
 	// Находим refresh token в базе данных
 	rt, err := s.refreshTokenRepo.GetByToken(refreshTokenString)
 	if err != nil || rt == nil {
-		s.Logger.Log(logrus.WarnLevel, "Invalid or expired refresh token", nil)
+		s.Logger.Warn("Invalid or expired refresh token")
 		return nil, errors.New("invalid or expired refresh token")
 	}
 
 	// Проверяем срок действия токена
 	if rt.ExpiresAt.Before(time.Now()) {
-		s.Logger.Log(logrus.WarnLevel, "Expired refresh token", nil)
+		s.Logger.Warn("Expired refresh token")
 		return nil, errors.New("expired refresh token")
 	}
 
 	// Получаем пользователя
 	user, err := s.userRepo.GetByID(rt.UserID)
 	if err != nil {
-		s.Logger.Log(logrus.ErrorLevel, "Failed to fetch user by ID", map[string]interface{}{
-			"error": err.Error(),
-		})
+		s.Logger.WithError(err).Error("Failed to fetch user by ID")
 		return nil, errors.New("failed to fetch user")
 	}
 
@@ -207,21 +199,17 @@ func (s *AuthService) RefreshToken(refreshTokenString string) (*AuthTokens, erro
 
 // Logout отзывает refresh token.
 func (s *AuthService) Logout(refreshTokenString string) error {
-	s.Logger.Log(logrus.InfoLevel, "Revoking refresh token", map[string]interface{}{
-		"refresh_token": refreshTokenString,
-	})
+	s.Logger.WithField("refresh_token", refreshTokenString).Info("Revoking refresh token")
 
 	rt, err := s.refreshTokenRepo.GetByToken(refreshTokenString)
 	if err != nil || rt == nil {
-		s.Logger.Log(logrus.WarnLevel, "Invalid or not found refresh token during logout", nil)
+		s.Logger.Warn("Invalid or not found refresh token during logout")
 		return errors.New("invalid or not found refresh token")
 	}
 
 	rt.Revoked = true
 	if err := s.refreshTokenRepo.Update(rt); err != nil {
-		s.Logger.Log(logrus.ErrorLevel, "Failed to revoke refresh token", map[string]interface{}{
-			"error": err.Error(),
-		})
+		s.Logger.WithError(err).Error("Failed to revoke refresh token")
 		return err
 	}
 

@@ -10,8 +10,8 @@ import (
 	"github.com/AsterOzlob/content_managment_api/config"
 	"github.com/AsterOzlob/content_managment_api/internal/dto"
 	"github.com/AsterOzlob/content_managment_api/internal/dto/mappers"
+	logger "github.com/AsterOzlob/content_managment_api/internal/logger"
 	"github.com/AsterOzlob/content_managment_api/internal/services"
-	logging "github.com/AsterOzlob/content_managment_api/logger"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 )
@@ -19,14 +19,14 @@ import (
 // MediaController предоставляет методы для управления медиафайлами через HTTP API.
 type MediaController struct {
 	service     *services.MediaService // service - экземпляр MediaService для выполнения бизнес-логики.
-	Logger      *logging.Logger        // Logger - экземпляр логгера для MediaController.
+	Logger      logger.Logger          // Logger - интерфейсный логгер
 	MediaConfig *config.MediaConfig    // MediaConfig - конфигурация для работы с медиафайлами.
 }
 
-// NewMediaController создает новый экземпляр MediaController.
+// NewMediaController создаёт новый экземпляр MediaController.
 func NewMediaController(
 	service *services.MediaService,
-	logger *logging.Logger,
+	logger logger.Logger,
 	mediaConfig *config.MediaConfig,
 ) *MediaController {
 	return &MediaController{
@@ -48,38 +48,31 @@ func NewMediaController(
 // @Failure 400 {object} map[string]string
 // @Router /media/upload [post]
 func (c *MediaController) UploadFile(ctx *gin.Context) {
-	// Получаем ID статьи из формы
 	articleIDStr := ctx.PostForm("article_id")
 	articleID, err := strconv.ParseUint(articleIDStr, 10, 64)
 	if err != nil {
-		c.Logger.Log(logrus.ErrorLevel, "Invalid article ID", map[string]interface{}{
-			"error": err.Error(),
-		})
+		c.Logger.WithError(err).Error("Invalid article ID")
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid article ID"})
 		return
 	}
 
-	// Получаем файл из формы
 	file, err := ctx.FormFile("file")
 	if err != nil {
-		c.Logger.Log(logrus.ErrorLevel, "Failed to get file from request", map[string]interface{}{
-			"error": err.Error(),
-		})
+		c.Logger.WithError(err).Error("Failed to get file from request")
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "failed to get file"})
 		return
 	}
 
-	// Проверяем размер файла
 	if file.Size > c.MediaConfig.MaxSize {
-		c.Logger.Log(logrus.WarnLevel, "File size exceeds the limit", map[string]interface{}{
+		c.Logger.WithFields(logrus.Fields{
 			"file_size": file.Size,
 			"max_size":  c.MediaConfig.MaxSize,
-		})
+		}).Warn("File size exceeds the limit")
+
 		ctx.JSON(http.StatusRequestEntityTooLarge, gin.H{"error": "file size exceeds the limit"})
 		return
 	}
 
-	// Проверяем тип файла
 	fileType := file.Header.Get("Content-Type")
 	if len(c.MediaConfig.AllowedTypes) > 0 {
 		allowed := false
@@ -90,40 +83,30 @@ func (c *MediaController) UploadFile(ctx *gin.Context) {
 			}
 		}
 		if !allowed {
-			c.Logger.Log(logrus.WarnLevel, "File type is not allowed", map[string]interface{}{
-				"file_type": fileType,
-			})
+			c.Logger.WithField("file_type", fileType).Warn("File type is not allowed")
 			ctx.JSON(http.StatusUnsupportedMediaType, gin.H{"error": "file type is not allowed"})
 			return
 		}
 	}
 
-	// Генерируем уникальное имя файла
 	fileName := fmt.Sprintf("%d_%s", time.Now().Unix(), filepath.Base(file.Filename))
 	filePath := filepath.Join(c.MediaConfig.StoragePath, fileName)
 
-	// Сохраняем файл на сервере
 	if err := ctx.SaveUploadedFile(file, filePath); err != nil {
-		c.Logger.Log(logrus.ErrorLevel, "Failed to save file", map[string]interface{}{
-			"error": err.Error(),
-		})
+		c.Logger.WithError(err).Error("Failed to save uploaded file")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save file"})
 		return
 	}
 
-	// Вызываем сервис для создания записи о медиафайле
 	media, err := c.service.UploadFile(dto.MediaInput{
 		ArticleID: uint(articleID),
 	}, filePath, fileType, file.Size)
 	if err != nil {
-		c.Logger.Log(logrus.ErrorLevel, "Failed to upload media file", map[string]interface{}{
-			"error": err.Error(),
-		})
+		c.Logger.WithError(err).Error("Failed to upload media file")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Преобразуем модель в DTO и отправляем ответ
 	ctx.JSON(http.StatusCreated, mappers.MapToMediaResponse(media))
 }
 
@@ -136,19 +119,15 @@ func (c *MediaController) UploadFile(ctx *gin.Context) {
 // @Failure 500 {object} map[string]string
 // @Router /media [get]
 func (c *MediaController) GetAllMedia(ctx *gin.Context) {
-	c.Logger.Log(logrus.InfoLevel, "Fetching all media files", nil)
+	c.Logger.Info("Fetching all media files in controller")
 
-	// Вызываем сервис для получения всех медиафайлов
 	media, err := c.service.GetAllMedia()
 	if err != nil {
-		c.Logger.Log(logrus.ErrorLevel, "Failed to fetch all media files", map[string]interface{}{
-			"error": err.Error(),
-		})
+		c.Logger.WithError(err).Error("Failed to fetch all media files")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Преобразуем модели в DTO и отправляем ответ
 	ctx.JSON(http.StatusOK, mappers.MapToMediaListResponse(media))
 }
 
@@ -163,28 +142,23 @@ func (c *MediaController) GetAllMedia(ctx *gin.Context) {
 // @Failure 500 {object} map[string]string
 // @Router /media/{id} [get]
 func (c *MediaController) GetAllByArticleID(ctx *gin.Context) {
-	// Получаем ID статьи из параметров пути
 	idStr := ctx.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
-		c.Logger.Log(logrus.ErrorLevel, "Invalid article ID", map[string]interface{}{
-			"error": err.Error(),
-		})
+		c.Logger.WithError(err).Error("Invalid article ID in GetAllByArticleID")
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid article ID"})
 		return
 	}
 
-	// Вызываем сервис для получения медиафайлов
+	c.Logger.WithField("article_id", id).Info("Fetching media by article ID")
+
 	media, err := c.service.GetAllByArticleID(uint(id))
 	if err != nil {
-		c.Logger.Log(logrus.ErrorLevel, "Failed to fetch media by article ID", map[string]interface{}{
-			"error": err.Error(),
-		})
+		c.Logger.WithError(err).Error("Failed to fetch media by article ID")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Преобразуем модели в DTO и отправляем ответ
 	ctx.JSON(http.StatusOK, mappers.MapToMediaListResponse(media))
 }
 
@@ -194,31 +168,26 @@ func (c *MediaController) GetAllByArticleID(ctx *gin.Context) {
 // @Produce json
 // @Param id path uint true "Media ID"
 // @Security BearerAuth
-// @Success 200 {object} map[string]string
+// @Success 200 {object} map[string]string "Successfully deleted"
 // @Failure 400 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Router /media/{id} [delete]
 func (c *MediaController) DeleteFile(ctx *gin.Context) {
-	// Получаем ID медиафайла из параметров пути
 	idStr := ctx.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
-		c.Logger.Log(logrus.ErrorLevel, "Invalid media ID", map[string]interface{}{
-			"error": err.Error(),
-		})
+		c.Logger.WithError(err).Error("Invalid media ID in DeleteFile")
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid media ID"})
 		return
 	}
 
-	// Вызываем сервис для удаления медиафайла
+	c.Logger.WithField("media_id", id).Info("Deleting media file")
+
 	if err := c.service.DeleteFile(uint(id)); err != nil {
-		c.Logger.Log(logrus.ErrorLevel, "Failed to delete media file", map[string]interface{}{
-			"error": err.Error(),
-		})
+		c.Logger.WithError(err).Error("Failed to delete media file")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Отправляем успешный ответ
 	ctx.JSON(http.StatusOK, gin.H{"message": "media file deleted"})
 }

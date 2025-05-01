@@ -6,18 +6,19 @@ import (
 
 	"github.com/AsterOzlob/content_managment_api/internal/dto"
 	"github.com/AsterOzlob/content_managment_api/internal/dto/mappers"
+	logger "github.com/AsterOzlob/content_managment_api/internal/logger"
 	"github.com/AsterOzlob/content_managment_api/internal/services"
-	logging "github.com/AsterOzlob/content_managment_api/logger"
 	"github.com/gin-gonic/gin"
-	"github.com/sirupsen/logrus"
 )
 
+// RoleController предоставляет CRUD операции для ролей.
 type RoleController struct {
 	service *services.RoleService
-	Logger  *logging.Logger
+	Logger  logger.Logger
 }
 
-func NewRoleController(service *services.RoleService, logger *logging.Logger) *RoleController {
+// NewRoleController создаёт новый экземпляр RoleController.
+func NewRoleController(service *services.RoleService, logger logger.Logger) *RoleController {
 	return &RoleController{service: service, Logger: logger}
 }
 
@@ -27,61 +28,48 @@ func NewRoleController(service *services.RoleService, logger *logging.Logger) *R
 // @Accept json
 // @Produce json
 // @Param role body dto.RoleCreateDTO true "Role data"
-// @Success 201 {object} dto.RoleResponseDTO "Role created successfully"
-// @Failure 400 {object} map[string]string "Invalid input data"
-// @Failure 500 {object} map[string]string "Internal server error"
+// @Success 201 {object} dto.RoleResponseDTO
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
 // @Router /roles [post]
 func (c *RoleController) CreateRole(ctx *gin.Context) {
 	var input dto.RoleCreateDTO
 	if err := ctx.ShouldBindJSON(&input); err != nil {
-		c.Logger.Log(logrus.WarnLevel, "Invalid input data for role creation", map[string]interface{}{
-			"error": err.Error(),
-		})
+		c.Logger.WithError(err).Warn("Invalid input data for role creation")
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	c.Logger.Log(logrus.InfoLevel, "Handling role creation request", map[string]interface{}{
-		"role_name": input.Name,
-	})
+
+	c.Logger.WithField("role_name", input.Name).Info("Handling role creation request")
+
 	createdRole, err := c.service.CreateRole(&input)
 	if err != nil {
-		c.Logger.Log(logrus.ErrorLevel, "Failed to handle role creation request", map[string]interface{}{
-			"error": err.Error(),
-		})
+		c.Logger.WithError(err).Error("Failed to handle role creation request")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	ctx.JSON(http.StatusCreated, mappers.ToRoleResponseDTO(createdRole))
+
+	ctx.JSON(http.StatusCreated, mappers.MapToRoleResponse(createdRole))
 }
 
 // @Summary Получение всех ролей
 // @Description Возвращает список всех ролей в системе.
 // @Tags Roles
 // @Produce json
-// @Success 200 {array} dto.RoleResponseDTO "List of roles"
-// @Failure 500 {object} map[string]string "Internal server error"
+// @Success 200 {array} dto.RoleResponseDTO
+// @Failure 500 {object} map[string]string
 // @Router /roles [get]
 func (c *RoleController) GetAllRoles(ctx *gin.Context) {
-	c.Logger.Log(logrus.InfoLevel, "Handling request to fetch all roles", nil)
+	c.Logger.Info("Handling request to fetch all roles")
 
-	// Получаем роли из сервиса
 	roles, err := c.service.GetAllRoles()
 	if err != nil {
-		c.Logger.Log(logrus.ErrorLevel, "Failed to handle request to fetch all roles", map[string]interface{}{
-			"error": err.Error(),
-		})
+		c.Logger.WithError(err).Error("Failed to handle request to fetch all roles")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Преобразуем модели в DTO
-	var roleDTOs []*dto.RoleResponseDTO
-	for _, role := range roles {
-		roleDTOs = append(roleDTOs, mappers.ToRoleResponseDTO(role))
-	}
-
-	// Отправляем DTO клиенту
-	ctx.JSON(http.StatusOK, roleDTOs)
+	ctx.JSON(http.StatusOK, mappers.MapToRoleListResponse(roles))
 }
 
 // @Summary Получение роли по ID
@@ -89,32 +77,30 @@ func (c *RoleController) GetAllRoles(ctx *gin.Context) {
 // @Tags Roles
 // @Produce json
 // @Param id path uint true "Role ID"
-// @Success 200 {object} dto.RoleResponseDTO "Role details"
-// @Failure 400 {object} map[string]string "Invalid role ID"
-// @Failure 404 {object} map[string]string "Role not found"
-// @Failure 500 {object} map[string]string "Internal server error"
+// @Success 200 {object} dto.RoleResponseDTO
+// @Failure 400 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Failure 500 {object} map[string]string
 // @Router /roles/{id} [get]
 func (c *RoleController) GetRoleByID(ctx *gin.Context) {
-	id, err := strconv.ParseUint(ctx.Param("id"), 10, 64)
+	idStr := ctx.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
-		c.Logger.Log(logrus.WarnLevel, "Invalid role ID in request", map[string]interface{}{
-			"error": err.Error(),
-		})
+		c.Logger.WithError(err).WithField("role_id", idStr).Warn("Invalid role ID in request")
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid role ID"})
 		return
 	}
-	c.Logger.Log(logrus.InfoLevel, "Handling role fetch request by ID", map[string]interface{}{
-		"role_id": id,
-	})
+
+	c.Logger.WithField("role_id", id).Info("Handling role fetch request by ID")
+
 	role, err := c.service.GetRoleByID(uint(id))
 	if err != nil {
-		c.Logger.Log(logrus.ErrorLevel, "Failed to handle role fetch request by ID", map[string]interface{}{
-			"error": err.Error(),
-		})
+		c.Logger.WithError(err).Error("Failed to handle role fetch request by ID")
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "Role not found"})
 		return
 	}
-	ctx.JSON(http.StatusOK, mappers.ToRoleResponseDTO(role))
+
+	ctx.JSON(http.StatusOK, mappers.MapToRoleResponse(role))
 }
 
 // @Summary Обновление роли
@@ -124,40 +110,37 @@ func (c *RoleController) GetRoleByID(ctx *gin.Context) {
 // @Produce json
 // @Param id path uint true "Role ID"
 // @Param role body dto.RoleUpdateDTO true "Updated role data"
-// @Success 200 {object} dto.RoleResponseDTO "Role updated successfully"
-// @Failure 400 {object} map[string]string "Invalid input data or role ID"
-// @Failure 404 {object} map[string]string "Role not found"
-// @Failure 500 {object} map[string]string "Internal server error"
+// @Success 200 {object} dto.RoleResponseDTO
+// @Failure 400 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Failure 500 {object} map[string]string
 // @Router /roles/{id} [put]
 func (c *RoleController) UpdateRole(ctx *gin.Context) {
-	id, err := strconv.ParseUint(ctx.Param("id"), 10, 64)
+	idStr := ctx.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
-		c.Logger.Log(logrus.WarnLevel, "Invalid role ID in request", map[string]interface{}{
-			"error": err.Error(),
-		})
+		c.Logger.WithError(err).WithField("role_id", idStr).Warn("Invalid role ID in request")
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid role ID"})
 		return
 	}
+
 	var input dto.RoleUpdateDTO
 	if err := ctx.ShouldBindJSON(&input); err != nil {
-		c.Logger.Log(logrus.WarnLevel, "Invalid input data for role update", map[string]interface{}{
-			"error": err.Error(),
-		})
+		c.Logger.WithError(err).Warn("Invalid input data for role update")
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	c.Logger.Log(logrus.InfoLevel, "Handling role update request", map[string]interface{}{
-		"role_id": id,
-	})
+
+	c.Logger.WithField("role_id", id).Info("Handling role update request")
+
 	updatedRole, err := c.service.UpdateRole(uint(id), &input)
 	if err != nil {
-		c.Logger.Log(logrus.ErrorLevel, "Failed to handle role update request", map[string]interface{}{
-			"error": err.Error(),
-		})
+		c.Logger.WithError(err).Error("Failed to handle role update request")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	ctx.JSON(http.StatusOK, mappers.ToRoleResponseDTO(updatedRole))
+
+	ctx.JSON(http.StatusOK, mappers.MapToRoleResponse(updatedRole))
 }
 
 // @Summary Удаление роли
@@ -165,28 +148,26 @@ func (c *RoleController) UpdateRole(ctx *gin.Context) {
 // @Tags Roles
 // @Produce json
 // @Param id path uint true "Role ID"
-// @Success 200 {object} map[string]string "Role deleted successfully"
-// @Failure 400 {object} map[string]string "Invalid role ID"
-// @Failure 500 {object} map[string]string "Internal server error"
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
 // @Router /roles/{id} [delete]
 func (c *RoleController) DeleteRole(ctx *gin.Context) {
-	id, err := strconv.ParseUint(ctx.Param("id"), 10, 64)
+	idStr := ctx.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
-		c.Logger.Log(logrus.WarnLevel, "Invalid role ID in request", map[string]interface{}{
-			"error": err.Error(),
-		})
+		c.Logger.WithError(err).WithField("role_id", idStr).Warn("Invalid role ID in request")
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid role ID"})
 		return
 	}
-	c.Logger.Log(logrus.InfoLevel, "Handling role deletion request", map[string]interface{}{
-		"role_id": id,
-	})
+
+	c.Logger.WithField("role_id", id).Info("Handling role deletion request")
+
 	if err := c.service.DeleteRole(uint(id)); err != nil {
-		c.Logger.Log(logrus.ErrorLevel, "Failed to handle role deletion request", map[string]interface{}{
-			"error": err.Error(),
-		})
+		c.Logger.WithError(err).Error("Failed to handle role deletion request")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
 	ctx.JSON(http.StatusOK, gin.H{"message": "Role deleted successfully"})
 }

@@ -1,29 +1,26 @@
 package services
 
 import (
+	"github.com/AsterOzlob/content_managment_api/internal/database/models"
+	"github.com/AsterOzlob/content_managment_api/internal/database/repositories"
 	"github.com/AsterOzlob/content_managment_api/internal/dto"
-	"github.com/AsterOzlob/content_managment_api/internal/models"
-	"github.com/AsterOzlob/content_managment_api/internal/repositories"
-	logging "github.com/AsterOzlob/content_managment_api/logger"
-	"github.com/sirupsen/logrus"
+	logger "github.com/AsterOzlob/content_managment_api/internal/logger"
 )
 
 // CommentService предоставляет методы для управления комментариями.
 type CommentService struct {
 	repo   *repositories.CommentRepository
-	Logger *logging.Logger
+	Logger logger.Logger
 }
 
 // NewCommentService создает новый экземпляр CommentService.
-func NewCommentService(repo *repositories.CommentRepository, logger *logging.Logger) *CommentService {
+func NewCommentService(repo *repositories.CommentRepository, logger logger.Logger) *CommentService {
 	return &CommentService{repo: repo, Logger: logger}
 }
 
 // AddCommentToArticle добавляет комментарий к статье.
 func (s *CommentService) AddCommentToArticle(articleID uint, input dto.CommentInput) (*models.Comment, error) {
-	s.Logger.Log(logrus.InfoLevel, "Adding comment to article", map[string]interface{}{
-		"article_id": articleID,
-	})
+	s.Logger.WithField("article_id", articleID).Info("Adding comment to article")
 
 	comment := &models.Comment{
 		ParentID:  input.ParentID,
@@ -33,9 +30,7 @@ func (s *CommentService) AddCommentToArticle(articleID uint, input dto.CommentIn
 	}
 
 	if err := s.repo.Create(comment); err != nil {
-		s.Logger.Log(logrus.ErrorLevel, "Failed to create comment in repository", map[string]interface{}{
-			"error": err.Error(),
-		})
+		s.Logger.WithError(err).Error("Failed to create comment in repository")
 		return nil, err
 	}
 
@@ -43,16 +38,12 @@ func (s *CommentService) AddCommentToArticle(articleID uint, input dto.CommentIn
 }
 
 // GetCommentsByArticleID возвращает все комментарии к статье, включая вложенные.
-func (s *CommentService) GetCommentsByArticleID(articleID uint) ([]models.Comment, error) {
-	s.Logger.Log(logrus.InfoLevel, "Fetching comments by article ID in service", map[string]interface{}{
-		"article_id": articleID,
-	})
+func (s *CommentService) GetCommentsByArticleID(articleID uint) ([]*models.Comment, error) {
+	s.Logger.WithField("article_id", articleID).Info("Fetching comments by article ID in service")
 
 	comments, err := s.repo.GetByArticleID(articleID)
 	if err != nil {
-		s.Logger.Log(logrus.ErrorLevel, "Failed to fetch comments by article ID from repository", map[string]interface{}{
-			"error": err.Error(),
-		})
+		s.Logger.WithError(err).Error("Failed to fetch comments by article ID from repository")
 		return nil, err
 	}
 
@@ -61,14 +52,10 @@ func (s *CommentService) GetCommentsByArticleID(articleID uint) ([]models.Commen
 
 // DeleteComment удаляет комментарий по ID.
 func (s *CommentService) DeleteComment(commentID uint) error {
-	s.Logger.Log(logrus.InfoLevel, "Deleting comment in service", map[string]interface{}{
-		"comment_id": commentID,
-	})
+	s.Logger.WithField("comment_id", commentID).Info("Deleting comment in service")
 
 	if err := s.repo.Delete(commentID); err != nil {
-		s.Logger.Log(logrus.ErrorLevel, "Failed to delete comment from repository", map[string]interface{}{
-			"error": err.Error(),
-		})
+		s.Logger.WithError(err).Error("Failed to delete comment from repository")
 		return err
 	}
 

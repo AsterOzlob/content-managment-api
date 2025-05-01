@@ -6,20 +6,19 @@ import (
 
 	"github.com/AsterOzlob/content_managment_api/internal/dto"
 	"github.com/AsterOzlob/content_managment_api/internal/dto/mappers"
+	logger "github.com/AsterOzlob/content_managment_api/internal/logger"
 	"github.com/AsterOzlob/content_managment_api/internal/services"
-	logging "github.com/AsterOzlob/content_managment_api/logger"
 	"github.com/gin-gonic/gin"
-	"github.com/sirupsen/logrus"
 )
 
 // CommentController предоставляет методы для управления комментариями через HTTP API.
 type CommentController struct {
 	service *services.CommentService
-	Logger  *logging.Logger
+	Logger  logger.Logger
 }
 
 // NewCommentController создает новый экземпляр CommentController.
-func NewCommentController(service *services.CommentService, logger *logging.Logger) *CommentController {
+func NewCommentController(service *services.CommentService, logger logger.Logger) *CommentController {
 	return &CommentController{service: service, Logger: logger}
 }
 
@@ -39,27 +38,21 @@ func (c *CommentController) AddCommentToArticle(ctx *gin.Context) {
 	articleIDStr := ctx.Param("id")
 	articleID, err := strconv.ParseUint(articleIDStr, 10, 64)
 	if err != nil {
-		c.Logger.Log(logrus.ErrorLevel, "Invalid article ID", map[string]interface{}{
-			"error": err.Error(),
-		})
+		c.Logger.WithError(err).WithField("article_id", articleIDStr).Error("Invalid article ID")
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid article ID"})
 		return
 	}
 
 	var input dto.CommentInput
 	if err := ctx.ShouldBindJSON(&input); err != nil {
-		c.Logger.Log(logrus.ErrorLevel, "Failed to bind JSON", map[string]interface{}{
-			"error": err.Error(),
-		})
+		c.Logger.WithError(err).Error("Failed to bind JSON")
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	comment, err := c.service.AddCommentToArticle(uint(articleID), input)
 	if err != nil {
-		c.Logger.Log(logrus.ErrorLevel, "Failed to add comment to article", map[string]interface{}{
-			"error": err.Error(),
-		})
+		c.Logger.WithError(err).Error("Failed to add comment to article")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -82,33 +75,21 @@ func (c *CommentController) GetCommentsByArticleID(ctx *gin.Context) {
 	articleIDStr := ctx.Param("id")
 	articleID, err := strconv.ParseUint(articleIDStr, 10, 64)
 	if err != nil {
-		c.Logger.Log(logrus.ErrorLevel, "Invalid article ID", map[string]interface{}{
-			"error": err.Error(),
-		})
+		c.Logger.WithError(err).WithField("article_id", articleIDStr).Error("Invalid article ID")
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid article ID"})
 		return
 	}
 
-	c.Logger.Log(logrus.InfoLevel, "Fetching comments by article ID in controller", map[string]interface{}{
-		"article_id": articleID,
-	})
+	c.Logger.WithField("article_id", articleID).Info("Fetching comments by article ID")
 
 	comments, err := c.service.GetCommentsByArticleID(uint(articleID))
 	if err != nil {
-		c.Logger.Log(logrus.ErrorLevel, "Failed to fetch comments by article ID", map[string]interface{}{
-			"error": err.Error(),
-		})
+		c.Logger.WithError(err).Error("Failed to fetch comments by article ID")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Преобразуем модели в DTO
-	var dtoComments []dto.CommentResponse
-	for _, comment := range comments {
-		dtoComments = append(dtoComments, mappers.MapToCommentResponse(&comment))
-	}
-
-	ctx.JSON(http.StatusOK, dtoComments)
+	ctx.JSON(http.StatusOK, mappers.MapToCommentListResponse(comments))
 }
 
 // @Summary Delete a comment
@@ -125,17 +106,13 @@ func (c *CommentController) DeleteComment(ctx *gin.Context) {
 	commentIDStr := ctx.Param("id")
 	commentID, err := strconv.ParseUint(commentIDStr, 10, 64)
 	if err != nil {
-		c.Logger.Log(logrus.ErrorLevel, "Invalid comment ID", map[string]interface{}{
-			"error": err.Error(),
-		})
+		c.Logger.WithError(err).WithField("comment_id", commentIDStr).Error("Invalid comment ID")
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid comment ID"})
 		return
 	}
 
 	if err := c.service.DeleteComment(uint(commentID)); err != nil {
-		c.Logger.Log(logrus.ErrorLevel, "Failed to delete comment", map[string]interface{}{
-			"error": err.Error(),
-		})
+		c.Logger.WithError(err).Error("Failed to delete comment")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

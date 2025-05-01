@@ -3,8 +3,8 @@ package mappers
 import (
 	"time"
 
+	"github.com/AsterOzlob/content_managment_api/internal/database/models"
 	"github.com/AsterOzlob/content_managment_api/internal/dto"
-	"github.com/AsterOzlob/content_managment_api/internal/models"
 )
 
 // MapToContentResponse преобразует модель Article в DTO ContentResponse.
@@ -39,4 +39,15 @@ func MapToArticleResponse(content *models.Article) *dto.ArticleResponse {
 		Media:     mediaDTOs,
 		Comments:  commentDTOs,
 	}
+}
+
+// MapToArticleListResponse преобразует список статей в список DTO-ответов.
+func MapToArticleListResponse(articles []*models.Article) []*dto.ArticleResponse {
+	dtoArticles := make([]*dto.ArticleResponse, 0, len(articles))
+
+	for _, article := range articles {
+		dtoArticles = append(dtoArticles, MapToArticleResponse(article))
+	}
+
+	return dtoArticles
 }

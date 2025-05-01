@@ -3,9 +3,8 @@ package config
 import (
 	"strconv"
 
-	logging "github.com/AsterOzlob/content_managment_api/logger"
+	logger "github.com/AsterOzlob/content_managment_api/internal/logger"
 	"github.com/joho/godotenv"
-	"github.com/sirupsen/logrus"
 )
 
 // JWTConfig содержит настройки для работы с JWT-токенами.
@@ -17,26 +16,22 @@ type JWTConfig struct {
 }
 
 // LoadJWTConfig загружает конфигурацию JWT из переменных окружения или .env файла.
-func LoadJWTConfig(logger *logging.Logger) (*JWTConfig, error) {
+func LoadJWTConfig(logger logger.Logger) (*JWTConfig, error) {
 	// Загрузка переменных окружения из .env
 	if err := godotenv.Load("./.env"); err != nil {
-		logger.Log(logrus.WarnLevel, "No .env file found, using environment variables", nil)
+		logger.Warn("No .env file found, using environment variables")
 	}
 
 	// Чтение переменных окружения
 	accessTokenTTL, err := strconv.Atoi(getEnv("JWT_ACCESS_TOKEN_TTL", "15")) // Значение по умолчанию: 15 минут
 	if err != nil {
-		logger.Log(logrus.WarnLevel, "Invalid JWT_ACCESS_TOKEN_TTL value, using default 15 minutes", map[string]interface{}{
-			"error": err.Error(),
-		})
+		logger.WithError(err).Warn("Invalid JWT_ACCESS_TOKEN_TTL value, using default 15 minutes")
 		accessTokenTTL = 15
 	}
 
 	refreshTokenTTL, err := strconv.Atoi(getEnv("JWT_REFRESH_TOKEN_TTL", "4320")) // Значение по умолчанию: 72 часа
 	if err != nil {
-		logger.Log(logrus.WarnLevel, "Invalid JWT_REFRESH_TOKEN_TTL value, using default 4320 minutes (72 hours)", map[string]interface{}{
-			"error": err.Error(),
-		})
+		logger.WithError(err).Warn("Invalid JWT_REFRESH_TOKEN_TTL value, using default 4320 minutes (72 hours)")
 		refreshTokenTTL = 4320
 	}
 
