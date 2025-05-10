@@ -118,7 +118,7 @@ func setupDependencies(dbConn *gorm.DB, cfg *config.Config) *routes.Dependencies
 	userSvc := services.NewUserService(userRepo, userLogger)
 	articleSvc := services.NewArticleService(articleRepo, articleLogger)
 	commentSvc := services.NewCommentService(commentRepo, commentLogger)
-	mediaSvc := services.NewMediaService(mediaRepo, mediaLogger)
+	mediaSvc := services.NewMediaService(mediaRepo, articleRepo, mediaLogger)
 	roleSvc := services.NewRoleService(roleRepo, roleLogger)
 
 	// Инициализация контроллеров.
