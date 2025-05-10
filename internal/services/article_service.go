@@ -7,6 +7,7 @@ import (
 	"github.com/AsterOzlob/content_managment_api/internal/database/repositories"
 	"github.com/AsterOzlob/content_managment_api/internal/dto"
 	logger "github.com/AsterOzlob/content_managment_api/internal/logger"
+	"github.com/AsterOzlob/content_managment_api/pkg/utils"
 	"github.com/sirupsen/logrus"
 )
 
@@ -22,24 +23,23 @@ func NewArticleService(repo *repositories.ArticleRepository, logger logger.Logge
 }
 
 // CreateArticle создаёт новую статью.
-func (s *ArticleService) CreateArticle(input dto.ArticleInput) (*models.Article, error) {
+func (s *ArticleService) CreateArticle(input dto.ArticleInput, userID uint) (*models.Article, error) {
 	s.Logger.WithFields(logrus.Fields{
-		"author_id": input.AuthorID,
+		"author_id": userID,
 		"title":     input.Title,
 	}).Info("Creating article in service")
 
-	// Проверяем, существует ли пользователь с указанным AuthorID
 	var user models.User
-	if err := s.repo.DB.First(&user, input.AuthorID).Error; err != nil {
+	if err := s.repo.DB.First(&user, userID).Error; err != nil {
 		s.Logger.WithFields(logrus.Fields{
 			"error":     err.Error(),
-			"author_id": input.AuthorID,
+			"author_id": userID,
 		}).Error("User not found")
 		return nil, errors.New("user not found")
 	}
 
 	article := &models.Article{
-		AuthorID:  input.AuthorID,
+		AuthorID:  userID,
 		Title:     input.Title,
 		Text:      input.Text,
 		Published: input.Published,
@@ -78,7 +78,7 @@ func (s *ArticleService) GetArticleByID(id uint) (*models.Article, error) {
 }
 
 // UpdateArticle обновляет существующую статью.
-func (s *ArticleService) UpdateArticle(id uint, input dto.ArticleInput) (*models.Article, error) {
+func (s *ArticleService) UpdateArticle(id uint, input dto.ArticleInput, userID uint, userRoles []string) (*models.Article, error) {
 	s.Logger.WithFields(logrus.Fields{
 		"article_id": id,
 		"title":      input.Title,
@@ -90,7 +90,10 @@ func (s *ArticleService) UpdateArticle(id uint, input dto.ArticleInput) (*models
 		return nil, errors.New("article not found")
 	}
 
-	article.AuthorID = input.AuthorID
+	if !utils.IsOwner(article.AuthorID, userID, userRoles) {
+		return nil, errors.New("access denied: you are not the owner or don't have required role")
+	}
+
 	article.Title = input.Title
 	article.Text = input.Text
 	article.Published = input.Published
@@ -103,13 +106,29 @@ func (s *ArticleService) UpdateArticle(id uint, input dto.ArticleInput) (*models
 	return article, nil
 }
 
-// DeleteArticle удаляет статью по ID.
-func (s *ArticleService) DeleteArticle(id uint) error {
+// DeleteArticle удаляет статью по ID после проверки прав доступа.
+func (s *ArticleService) DeleteArticle(id uint, userID uint, userRoles []string) error {
 	s.Logger.WithField("article_id", id).Info("Deleting article in service")
+
+	article, err := s.repo.GetByID(id)
+	if err != nil {
+		s.Logger.WithError(err).Error("Failed to fetch article by ID from repository")
+		return errors.New("article not found")
+	}
+
+	if !utils.IsOwner(article.AuthorID, userID, userRoles) {
+		s.Logger.WithFields(logrus.Fields{
+			"article_id": id,
+			"user_id":    userID,
+			"roles":      userRoles,
+		}).Warn("Access denied: user is not the owner or doesn't have required role")
+		return errors.New("access denied: you are not the owner or don't have required role")
+	}
 
 	if err := s.repo.Delete(id); err != nil {
 		s.Logger.WithError(err).Error("Failed to delete article from repository")
 		return err
 	}
+
 	return nil
 }
