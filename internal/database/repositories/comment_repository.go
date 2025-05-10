@@ -44,6 +44,33 @@ func (r *CommentRepository) GetByArticleID(articleID uint) ([]*models.Comment, e
 	return comments, nil
 }
 
+// GetByID возвращает комментарий по ID.
+func (r *CommentRepository) GetByID(id uint) (*models.Comment, error) {
+	r.Logger.WithField("comment_id", id).Info("Fetching comment by ID from database")
+
+	var comment models.Comment
+	result := r.DB.First(&comment, id)
+	if result.Error != nil {
+		r.Logger.WithError(result.Error).Error("Failed to fetch comment by ID")
+		return nil, result.Error
+	}
+
+	return &comment, nil
+}
+
+// Update редактирует содержимое комментария.
+func (r *CommentRepository) Update(comment *models.Comment) error {
+	r.Logger.WithField("comment_id", comment.ID).Info("Updating comment in database")
+
+	result := r.DB.Save(comment)
+	if result.Error != nil {
+		r.Logger.WithError(result.Error).Error("Failed to update comment in database")
+		return result.Error
+	}
+
+	return nil
+}
+
 // Delete удаляет комментарий по ID.
 func (r *CommentRepository) Delete(id uint) error {
 	r.Logger.WithField("comment_id", id).Info("Deleting comment from database")
