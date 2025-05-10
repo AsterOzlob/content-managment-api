@@ -4,10 +4,8 @@ import "time"
 
 // CommentInput представляет входные данные для создания комментария.
 type CommentInput struct {
-	ParentID  *uint  `json:"parent_id"`               // ID родительского комментария (опционально).
-	ArticleID uint   `json:"article_id"`              // ID статьи.
-	AuthorID  uint   `json:"author_id"`               // ID автора.
-	Text      string `json:"text" binding:"required"` // Текст комментария.
+	ParentID *uint  `json:"parent_id,omitempty"`     // ID родительского комментария (опционально).
+	Text     string `json:"text" binding:"required"` // Текст комментария.
 }
 
 // CommentResponse представляет ответ с данными комментария.

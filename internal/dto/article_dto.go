@@ -5,8 +5,6 @@ type ArticleInput struct {
 	Title     string `json:"title" binding:"required"` // Заголовок контента
 	Text      string `json:"text" binding:"required"`  // Текст контента
 	Published bool   `json:"published"`                // Опубликован ли контент
-	MediaIDs  []uint `json:"media_ids,omitempty"`      // Список ID медиафайлов (опционально)
-	AuthorID  uint   `json:"author_id,omitempty"`
 }
 
 // ArticleResponse представляет ответ с данными контента.
