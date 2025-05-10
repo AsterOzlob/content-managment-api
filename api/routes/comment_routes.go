@@ -7,25 +7,22 @@ import (
 
 // RegisterCommentRoutes регистрирует маршруты для управления комментариями.
 func RegisterCommentRoutes(r *gin.Engine, deps *Dependencies) {
-	// Группа маршрутов для комментариев, привязанных к статьям
 	content := r.Group("/articles")
 	{
 		protected := content.Group("/")
-		protected.Use(middleware.AuthMiddleware(deps.JWTConfig)) // Middleware для JWT-аутентификации
+		protected.Use(middleware.AuthMiddleware(deps.JWTConfig))
 		{
-			// Все аутентифицированные пользователи могут оставлять комментарии
 			protected.POST("/:id/comments", middleware.RoleMiddleware("user", "author", "moderator", "admin"), deps.CommentCtrl.AddCommentToArticle)
-
-			// Все аутентифицированные пользователи могут просматривать комментарии
 			protected.GET("/:id/comments", middleware.RoleMiddleware("user", "author", "moderator", "admin"), deps.CommentCtrl.GetCommentsByArticleID)
+
+			// Добавляем маршрут для редактирования комментария
+			protected.PUT("/comments/:id", middleware.RoleMiddleware("user", "author", "moderator", "admin"), deps.CommentCtrl.UpdateComment)
 		}
 	}
 
-	// Глобальные маршруты для комментариев
 	r.DELETE("/comments/:id",
 		middleware.AuthMiddleware(deps.JWTConfig),
-		middleware.OwnershipMiddleware(),
-		middleware.RoleMiddleware("user", "moderator", "admin"),
+		middleware.RoleMiddleware("user", "author", "moderator", "admin"),
 		deps.CommentCtrl.DeleteComment,
 	)
 }

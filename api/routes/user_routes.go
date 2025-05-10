@@ -14,7 +14,7 @@ func RegisterUserRoutes(r *gin.Engine, deps *Dependencies) {
 		protected.Use(middleware.AuthMiddleware(deps.JWTConfig)) // Middleware для JWT-аутентификации
 		{
 			// Пользователь может получить информацию только о себе
-			protected.GET("/:id", middleware.OwnershipMiddleware(), middleware.RoleMiddleware("user", "admin"), deps.UserCtrl.GetUserByID)
+			protected.GET("/:id", middleware.RoleMiddleware("user", "admin"), deps.UserCtrl.GetUserByID)
 
 			// Администраторы могут назначать роли
 			protected.PATCH("/:id/role", middleware.RoleMiddleware("admin"), deps.UserCtrl.AssignRole)

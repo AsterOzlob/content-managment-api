@@ -21,10 +21,10 @@ func RegisterArticleRoutes(r *gin.Engine, deps *Dependencies) {
 			protected.POST("", middleware.RoleMiddleware("author", "admin"), deps.ArticleCtrl.CreateArticle)
 
 			// Авторы могут редактировать свои статьи, модераторы и администраторы — любые
-			protected.PUT("/:id", middleware.OwnershipMiddleware(), middleware.RoleMiddleware("author", "moderator", "admin"), deps.ArticleCtrl.UpdateArticle)
+			protected.PUT("/:id", middleware.RoleMiddleware("author", "moderator", "admin"), deps.ArticleCtrl.UpdateArticle)
 
 			// Авторы могут удалять свои статьи, модераторы и администраторы — любые
-			protected.DELETE("/:id", middleware.OwnershipMiddleware(), middleware.RoleMiddleware("author", "moderator", "admin"), deps.ArticleCtrl.DeleteArticle)
+			protected.DELETE("/:id", middleware.RoleMiddleware("author", "moderator", "admin"), deps.ArticleCtrl.DeleteArticle)
 		}
 	}
 }

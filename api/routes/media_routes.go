@@ -9,19 +9,19 @@ import (
 func RegisterMediaRoutes(r *gin.Engine, deps *Dependencies) {
 	mediaGroup := r.Group("/media")
 	{
-		// Защищенные эндпоинты
 		protected := mediaGroup.Group("/")
-		protected.Use(middleware.AuthMiddleware(deps.JWTConfig)) // Middleware для JWT-аутентификации
+		protected.Use(middleware.AuthMiddleware(deps.JWTConfig))
 		{
-			// Авторы и администраторы могут загружать файлы
-			protected.POST("/upload", middleware.RoleMiddleware("author", "admin"), deps.MediaCtrl.UploadFile)
+			// Только авторы могут загружать файлы
+			protected.POST("/upload", middleware.RoleMiddleware("author", "admin"), deps.MediaCtrl.UploadFileWithArticle)
+			protected.POST("/upload/unlinked", middleware.RoleMiddleware("author", "admin"), deps.MediaCtrl.UploadUnlinkedFile)
 
-			// Все аутентифицированные пользователи могут просматривать файлы
+			// Все аутентифицированные пользователи могут просматривать
 			protected.GET("", middleware.RoleMiddleware("user", "author", "moderator", "admin"), deps.MediaCtrl.GetAllMedia)
 			protected.GET("/:id", middleware.RoleMiddleware("user", "author", "moderator", "admin"), deps.MediaCtrl.GetAllByArticleID)
 
-			// Авторы могут удалять только свои файлы, администраторы — любые
-			protected.DELETE("/:id", middleware.OwnershipMiddleware(), middleware.RoleMiddleware("author", "admin"), deps.MediaCtrl.DeleteFile)
+			// Удаление только для владельцев или админов
+			protected.DELETE("/:id", middleware.RoleMiddleware("author", "moderator", "admin"), deps.MediaCtrl.DeleteFile)
 		}
 	}
 }
