@@ -9,29 +9,30 @@ import (
 
 var ErrForbidden = errors.New("forbidden")
 
-// RoleMiddleware проверяет, имеет ли пользователь одну из разрешенных ролей.
+// RoleMiddleware проверяет, имеет ли пользователь одну из разрешённых ролей.
 func RoleMiddleware(allowedRoles ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		role, exists := c.Get("role")
+		userRolesI, exists := c.Get("userRoles")
 		if !exists {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized: no roles provided"})
 			return
 		}
 
-		roleStr := role.(string)
-		isAllowedRole := false
-		for _, r := range allowedRoles {
-			if roleStr == r {
-				isAllowedRole = true
-				break
+		userRoles, ok := userRolesI.([]string)
+		if !ok || len(userRoles) == 0 {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized: invalid role format"})
+			return
+		}
+
+		for _, allowed := range allowedRoles {
+			for _, role := range userRoles {
+				if role == allowed {
+					c.Next()
+					return
+				}
 			}
 		}
 
-		if !isAllowedRole {
-			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "You do not have permission to perform this action"})
-			return
-		}
-
-		c.Next()
+		c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "forbidden: insufficient permissions"})
 	}
 }

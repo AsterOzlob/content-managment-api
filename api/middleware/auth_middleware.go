@@ -32,9 +32,9 @@ func AuthMiddleware(jwtConfig *config.JWTConfig) gin.HandlerFunc {
 		userID := uint(claims["user_id"].(float64))
 		role := claims["role"].(string)
 
-		// Добавляем user_id и role в контекст
+		// Сохраняем в контекст:
 		c.Set("userID", userID)
-		c.Set("role", role)
+		c.Set("userRoles", []string{role})
 		c.Next()
 	}
 }
