@@ -8,6 +8,7 @@ import (
 	"github.com/AsterOzlob/content_managment_api/internal/dto/mappers"
 	logger "github.com/AsterOzlob/content_managment_api/internal/logger"
 	"github.com/AsterOzlob/content_managment_api/internal/services"
+	"github.com/AsterOzlob/content_managment_api/pkg/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 )
@@ -41,26 +42,24 @@ func (c *ArticleController) CreateArticle(ctx *gin.Context) {
 		return
 	}
 
+	userID, err := utils.GetUserIDFromContext(ctx)
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "user not authenticated"})
+		return
+	}
+
 	c.Logger.WithFields(logrus.Fields{
-		"author_id": input.AuthorID,
+		"author_id": userID,
 		"title":     input.Title,
 	}).Info("Creating new article")
 
-	// Создаем новую статью
-	article, err := c.service.CreateArticle(dto.ArticleInput{
-		AuthorID:  input.AuthorID,
-		Title:     input.Title,
-		Text:      input.Text,
-		Published: input.Published,
-		MediaIDs:  input.MediaIDs,
-	})
+	article, err := c.service.CreateArticle(input, userID)
 	if err != nil {
 		c.Logger.WithError(err).Error("Failed to create article")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Преобразуем модель в DTO
 	ctx.JSON(http.StatusCreated, mappers.MapToArticleResponse(article))
 }
 
@@ -84,15 +83,18 @@ func (c *ArticleController) GetAllArticles(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, mappers.MapToArticleListResponse(articles))
 }
 
-// @Summary Get article by ID
-// @Description Get specific article by ID with media and comments.
-// @Tags Articles
+// @Summary Add a comment to an article
+// @Description Add a new comment to an article by its ID.
+// @Tags Comments
+// @Accept json
 // @Produce json
 // @Param id path uint true "Article ID"
-// @Success 200 {object} dto.ArticleResponse
+// @Param comment body dto.CommentInput true "Comment Data"
+// @Security BearerAuth
+// @Success 201 {object} dto.CommentResponse
 // @Failure 400 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Router /articles/{id} [get]
+// @Failure 500 {object} map[string]string
+// @Router /articles/{id}/comments [post]
 func (c *ArticleController) GetArticleByID(ctx *gin.Context) {
 	idStr := ctx.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
@@ -115,19 +117,20 @@ func (c *ArticleController) GetArticleByID(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, mappers.MapToArticleResponse(article))
 }
 
-// @Summary Update article
-// @Description Update an existing article with optional media updates.
-// @Tags Articles
+// @Summary Update a comment
+// @Description Update an existing comment by ID if user is owner, moderator or admin.
+// @Tags Comments
 // @Accept json
 // @Produce json
-// @Param id path uint true "Article ID"
-// @Param article body dto.ArticleInput true "Updated Article Data"
+// @Param id path uint true "Comment ID"
+// @Param comment body dto.CommentInput true "Updated Comment Data"
 // @Security BearerAuth
-// @Success 200 {object} dto.ArticleResponse
+// @Success 200 {object} dto.CommentResponse
 // @Failure 400 {object} map[string]string
+// @Failure 403 {object} map[string]string
 // @Failure 404 {object} map[string]string
 // @Failure 500 {object} map[string]string
-// @Router /articles/{id} [put]
+// @Router /articles/comments/{id} [put]
 func (c *ArticleController) UpdateArticle(ctx *gin.Context) {
 	idStr := ctx.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
@@ -144,15 +147,28 @@ func (c *ArticleController) UpdateArticle(ctx *gin.Context) {
 		return
 	}
 
-	c.Logger.WithFields(logrus.Fields{
-		"article_id": id,
-		"title":      input.Title,
-	}).Info("Updating article")
-
-	article, err := c.service.UpdateArticle(uint(id), input)
+	userID, err := utils.GetUserIDFromContext(ctx)
 	if err != nil {
-		c.Logger.WithError(err).Error("Failed to update article")
-		ctx.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "user not authenticated"})
+		return
+	}
+
+	userRoles, err := utils.GetUserRolesFromContext(ctx)
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "user roles not found"})
+		return
+	}
+
+	article, err := c.service.UpdateArticle(uint(id), input, userID, userRoles)
+	if err != nil {
+		if err.Error() == "access denied: you are not the owner or don't have required role" {
+			ctx.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+		} else if err.Error() == "article not found" {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		} else {
+			c.Logger.WithError(err).Error("Failed to update article")
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		}
 		return
 	}
 
@@ -179,13 +195,30 @@ func (c *ArticleController) DeleteArticle(ctx *gin.Context) {
 		return
 	}
 
-	c.Logger.WithField("article_id", id).Info("Deleting article")
-
-	if err := c.service.DeleteArticle(uint(id)); err != nil {
-		c.Logger.WithError(err).Error("Failed to delete article")
-		ctx.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+	userID, err := utils.GetUserIDFromContext(ctx)
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "user not authenticated"})
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{"message": "article deleted"})
+	userRoles, err := utils.GetUserRolesFromContext(ctx)
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "user roles not found"})
+		return
+	}
+
+	err = c.service.DeleteArticle(uint(id), userID, userRoles)
+	if err != nil {
+		if err.Error() == "access denied: you are not the owner or don't have required role" {
+			ctx.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+		} else if err.Error() == "article not found" {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		} else {
+			c.Logger.WithError(err).Error("Failed to delete article")
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		}
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"message": "article deleted successfully"})
 }
