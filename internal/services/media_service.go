@@ -10,7 +10,6 @@ import (
 	"github.com/AsterOzlob/content_managment_api/internal/dto"
 	logger "github.com/AsterOzlob/content_managment_api/internal/logger"
 	"github.com/AsterOzlob/content_managment_api/pkg/utils"
-	"github.com/sirupsen/logrus"
 )
 
 // MediaService предоставляет методы для управления медиафайлами.
@@ -46,18 +45,11 @@ func (s *MediaService) UploadFile(
 			s.Logger.WithError(err).WithField("article_id", *input.ArticleID).Error("Failed to get article by ID")
 			return nil, fmt.Errorf("failed to get article: %w", err)
 		}
-
 		if !utils.IsOwner(article.AuthorID, authorID, userRoles) {
-			s.Logger.WithFields(logrus.Fields{
-				"article_id":     *input.ArticleID,
-				"article_author": article.AuthorID,
-				"requester_id":   authorID,
-				"roles":          userRoles,
-			}).Warn("Access denied: user is not the author of the article")
+			s.Logger.Warn("Access denied: user is not the author of the article")
 			return nil, errors.New("access denied: you are not the author of this article")
 		}
 	}
-
 	media := &models.Media{
 		ArticleID: input.ArticleID,
 		AuthorID:  authorID,
@@ -65,67 +57,50 @@ func (s *MediaService) UploadFile(
 		FileType:  input.FileType,
 		FileSize:  input.FileSize,
 	}
-
 	if err := s.repo.Create(media); err != nil {
 		return nil, err
 	}
-
 	return media, nil
 }
 
 // GetAllMedia возвращает список всех медиафайлов.
 func (s *MediaService) GetAllMedia() ([]*models.Media, error) {
-	s.Logger.Info("Fetching all media in service")
-
 	media, err := s.repo.GetAll()
 	if err != nil {
 		s.Logger.WithError(err).Error("Failed to fetch all media from repository")
 		return nil, err
 	}
-
 	return media, nil
 }
 
 // GetAllByArticleID возвращает все медиафайлы, связанные с конкретной статьей.
 func (s *MediaService) GetAllByArticleID(articleID uint) ([]*models.Media, error) {
-	s.Logger.WithField("article_id", articleID).Info("Fetching media by article ID in service")
-
 	media, err := s.repo.GetAllByArticleID(articleID)
 	if err != nil {
 		s.Logger.WithError(err).Error("Failed to fetch media by article ID from repository")
 		return nil, err
 	}
-
 	return media, nil
 }
 
 // DeleteFile удаляет медиафайл по его ID.
 func (s *MediaService) DeleteFile(id uint, userID uint, userRoles []string) error {
-	s.Logger.WithField("media_id", id).Info("Deleting media file in service")
-
 	media, err := s.repo.GetByID(id)
 	if err != nil {
 		s.Logger.WithError(err).Error("Failed to fetch media by ID from repository")
 		return errors.New("media not found")
 	}
-
 	// Проверяем права пользователя: автор файла, модератор или админ
 	if !utils.IsOwner(media.AuthorID, userID, userRoles) {
 		s.Logger.Warn("Access denied: user is not the owner or doesn't have required role")
 		return errors.New("access denied: you are not the owner or don't have required role")
 	}
-
 	if err := s.repo.Delete(id); err != nil {
 		s.Logger.WithError(err).Error("Failed to delete media from repository")
 		return err
 	}
-
 	if err := os.Remove(media.FilePath); err != nil {
-		s.Logger.WithFields(logrus.Fields{
-			"file_path": media.FilePath,
-			"error":     err.Error(),
-		}).Warn("Failed to delete media file from filesystem")
+		s.Logger.Warn("Failed to delete media file from filesystem")
 	}
-
 	return nil
 }

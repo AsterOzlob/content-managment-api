@@ -19,11 +19,10 @@ func NewMediaRepository(db *gorm.DB, logger logger.Logger) *MediaRepository {
 
 // Create создает новый медиафайл в базе данных.
 func (r *MediaRepository) Create(media *models.Media) error {
-	r.Logger.WithField("file_path", media.FilePath).Info("Creating media in database")
-
 	result := r.DB.Create(media)
 	if result.Error != nil {
-		r.Logger.WithError(result.Error).Error("Failed to create media in database")
+		r.Logger.WithField("file_path", media.FilePath).WithError(result.Error).
+			Error("Failed to create media in database")
 		return result.Error
 	}
 	return nil
@@ -31,8 +30,6 @@ func (r *MediaRepository) Create(media *models.Media) error {
 
 // GetAll возвращает список всех медиафайлов.
 func (r *MediaRepository) GetAll() ([]*models.Media, error) {
-	r.Logger.Info("Fetching all media from database")
-
 	var media []*models.Media
 	result := r.DB.Find(&media)
 	if result.Error != nil {
@@ -44,12 +41,11 @@ func (r *MediaRepository) GetAll() ([]*models.Media, error) {
 
 // GetByID возвращает медиафайл по его ID.
 func (r *MediaRepository) GetByID(id uint) (*models.Media, error) {
-	r.Logger.WithField("media_id", id).Info("Fetching media by ID from database")
-
 	var media models.Media
 	result := r.DB.First(&media, id)
 	if result.Error != nil {
-		r.Logger.WithError(result.Error).Error("Failed to fetch media by ID from database")
+		r.Logger.WithField("media_id", id).WithError(result.Error).
+			Error("Failed to fetch media by ID from database")
 		return nil, result.Error
 	}
 	return &media, nil
@@ -57,11 +53,10 @@ func (r *MediaRepository) GetByID(id uint) (*models.Media, error) {
 
 // Delete удаляет медиафайл по его ID.
 func (r *MediaRepository) Delete(id uint) error {
-	r.Logger.WithField("media_id", id).Info("Deleting media from database")
-
 	result := r.DB.Delete(&models.Media{}, id)
 	if result.Error != nil {
-		r.Logger.WithError(result.Error).Error("Failed to delete media from database")
+		r.Logger.WithField("media_id", id).WithError(result.Error).
+			Error("Failed to delete media from database")
 		return result.Error
 	}
 	return nil
@@ -69,12 +64,11 @@ func (r *MediaRepository) Delete(id uint) error {
 
 // GetAllByArticleID возвращает все медиафайлы, связанные с конкретной статьей.
 func (r *MediaRepository) GetAllByArticleID(articleID uint) ([]*models.Media, error) {
-	r.Logger.WithField("article_id", articleID).Info("Fetching media by article ID from database")
-
 	var media []*models.Media
 	result := r.DB.Where("article_id = ?", articleID).Find(&media)
 	if result.Error != nil {
-		r.Logger.WithError(result.Error).Error("Failed to fetch media by article ID from database")
+		r.Logger.WithField("article_id", articleID).WithError(result.Error).
+			Error("Failed to fetch media by article ID from database")
 		return nil, result.Error
 	}
 	return media, nil

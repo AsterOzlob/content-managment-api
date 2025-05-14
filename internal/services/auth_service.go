@@ -10,7 +10,6 @@ import (
 	"github.com/AsterOzlob/content_managment_api/internal/dto"
 	logger "github.com/AsterOzlob/content_managment_api/internal/logger"
 	"github.com/AsterOzlob/content_managment_api/pkg/utils"
-	"github.com/sirupsen/logrus"
 )
 
 type AuthService struct {
@@ -41,22 +40,15 @@ func NewAuthService(
 
 // SignUp регистрирует нового пользователя и создает токены.
 func (s *AuthService) SignUp(input dto.AuthInput) (*models.User, *AuthTokens, error) {
-	s.Logger.WithFields(logrus.Fields{
-		"username": input.Username,
-		"email":    input.Email,
-	}).Info("Registering new user in service")
-
 	hashedPassword, err := utils.HashPassword(input.Password)
 	if err != nil {
 		return nil, nil, err
 	}
-
 	user := &models.User{
 		Username:     input.Username,
 		Email:        input.Email,
 		PasswordHash: hashedPassword,
 	}
-
 	// Присваиваем роль "user" по умолчанию
 	roleName := "user"
 	var role models.Role
@@ -66,12 +58,10 @@ func (s *AuthService) SignUp(input dto.AuthInput) (*models.User, *AuthTokens, er
 		return nil, nil, errors.New("failed to assign default role")
 	}
 	user.RoleID = role.ID
-
 	// Создаем пользователя
 	if err := s.userRepo.Create(user); err != nil {
 		return nil, nil, err
 	}
-
 	// Генерируем токены
 	accessToken, err := utils.GenerateAccessToken(user.ID, role.Name, s.JWTConfig)
 	if err != nil {
@@ -81,7 +71,6 @@ func (s *AuthService) SignUp(input dto.AuthInput) (*models.User, *AuthTokens, er
 	if err != nil {
 		return nil, nil, err
 	}
-
 	// Сохраняем refresh token в базу данных
 	rt := &models.RefreshToken{
 		UserID:    user.ID,
@@ -93,25 +82,20 @@ func (s *AuthService) SignUp(input dto.AuthInput) (*models.User, *AuthTokens, er
 	if err := s.refreshTokenRepo.Create(rt); err != nil {
 		return nil, nil, err
 	}
-
 	return user, &AuthTokens{AccessToken: accessToken, RefreshToken: refreshToken}, nil
 }
 
 // Login аутентифицирует пользователя и создаёт токены.
 func (s *AuthService) Login(input dto.AuthInput) (*models.User, *AuthTokens, error) {
-	s.Logger.WithField("email", input.Email).Info("Authenticating user in service")
-
 	user, err := s.userRepo.GetByEmail(input.Email)
 	if err != nil {
 		s.Logger.Warn("User not found during login")
 		return nil, nil, errors.New("invalid credentials")
 	}
-
 	if err := utils.CheckPasswordHash(input.Password, user.PasswordHash); err != nil {
 		s.Logger.Warn("Invalid password during authentication")
 		return nil, nil, errors.New("invalid credentials")
 	}
-
 	// Проверяем наличие активных токенов
 	existingToken, _ := s.refreshTokenRepo.GetActiveTokenByUser(user.ID)
 	if existingToken != nil && existingToken.ExpiresAt.After(time.Now()) {
@@ -125,18 +109,15 @@ func (s *AuthService) Login(input dto.AuthInput) (*models.User, *AuthTokens, err
 			RefreshToken: existingToken.Token,
 		}, nil
 	}
-
 	// Создаём новые токены, если старых нет или они истекли
 	accessToken, err := utils.GenerateAccessToken(user.ID, user.Role.Name, s.JWTConfig)
 	if err != nil {
 		return nil, nil, err
 	}
-
 	refreshToken, err := utils.GenerateRefreshToken(user.ID, s.JWTConfig)
 	if err != nil {
 		return nil, nil, err
 	}
-
 	rt := &models.RefreshToken{
 		UserID:    user.ID,
 		Token:     refreshToken,
@@ -144,74 +125,60 @@ func (s *AuthService) Login(input dto.AuthInput) (*models.User, *AuthTokens, err
 		IP:        input.IP,
 		UserAgent: input.UserAgent,
 	}
-
 	if err := s.refreshTokenRepo.Create(rt); err != nil {
 		return nil, nil, err
 	}
-
 	return user, &AuthTokens{AccessToken: accessToken, RefreshToken: refreshToken}, nil
 }
 
 // RefreshToken обновляет access token с использованием refresh token.
 func (s *AuthService) RefreshToken(refreshTokenString string) (*AuthTokens, error) {
-	s.Logger.WithField("refresh_token", refreshTokenString).Info("Refreshing token in service")
-
 	// Находим refresh token в базе данных
 	rt, err := s.refreshTokenRepo.GetByToken(refreshTokenString)
 	if err != nil || rt == nil {
 		s.Logger.Warn("Invalid or expired refresh token")
 		return nil, errors.New("invalid or expired refresh token")
 	}
-
 	// Проверяем срок действия токена
 	if rt.ExpiresAt.Before(time.Now()) {
 		s.Logger.Warn("Expired refresh token")
 		return nil, errors.New("expired refresh token")
 	}
-
 	// Получаем пользователя
 	user, err := s.userRepo.GetByID(rt.UserID)
 	if err != nil {
 		s.Logger.WithError(err).Error("Failed to fetch user by ID")
 		return nil, errors.New("failed to fetch user")
 	}
-
 	// Генерируем новые токены
 	accessToken, err := utils.GenerateAccessToken(user.ID, user.Role.Name, s.JWTConfig)
 	if err != nil {
 		return nil, err
 	}
-
 	newRefreshToken, err := utils.GenerateRefreshToken(user.ID, s.JWTConfig)
 	if err != nil {
 		return nil, err
 	}
-
 	// Обновляем refresh token в базе данных
 	rt.Token = newRefreshToken
 	rt.ExpiresAt = time.Now().Add(time.Duration(s.JWTConfig.RefreshTokenTTL) * time.Minute)
 	if err := s.refreshTokenRepo.Update(rt); err != nil {
 		return nil, err
 	}
-
 	return &AuthTokens{AccessToken: accessToken, RefreshToken: newRefreshToken}, nil
 }
 
 // Logout отзывает refresh token.
 func (s *AuthService) Logout(refreshTokenString string) error {
-	s.Logger.WithField("refresh_token", refreshTokenString).Info("Revoking refresh token")
-
 	rt, err := s.refreshTokenRepo.GetByToken(refreshTokenString)
 	if err != nil || rt == nil {
 		s.Logger.Warn("Invalid or not found refresh token during logout")
 		return errors.New("invalid or not found refresh token")
 	}
-
 	rt.Revoked = true
 	if err := s.refreshTokenRepo.Update(rt); err != nil {
 		s.Logger.WithError(err).Error("Failed to revoke refresh token")
 		return err
 	}
-
 	return nil
 }
