@@ -4,6 +4,7 @@ import (
 	"github.com/AsterOzlob/content_managment_api/config"
 	"github.com/AsterOzlob/content_managment_api/internal/database"
 	"github.com/AsterOzlob/content_managment_api/internal/database/migrations"
+	"github.com/AsterOzlob/content_managment_api/internal/database/seeds"
 	"github.com/AsterOzlob/content_managment_api/internal/logger"
 	"gorm.io/gorm"
 )
@@ -28,6 +29,12 @@ func InitializeApp(logger logger.Logger) (*config.Config, *gorm.DB) {
 	// Выполнение миграций для создания таблиц в базе данных.
 	if err := migrations.MigrateModels(dbConn, logger); err != nil {
 		logger.WithError(err).Error("Error migrating models")
+		return nil, nil
+	}
+
+	// Запускаем сиды
+	if err := seeds.Seed(dbConn); err != nil {
+		logger.WithError(err).Error("Error seeding database")
 		return nil, nil
 	}
 
