@@ -11,40 +11,35 @@ import (
 	"github.com/AsterOzlob/content_managment_api/config"
 	"github.com/AsterOzlob/content_managment_api/internal/dto"
 	"github.com/AsterOzlob/content_managment_api/internal/dto/mappers"
-	logger "github.com/AsterOzlob/content_managment_api/internal/logger"
 	"github.com/AsterOzlob/content_managment_api/internal/services"
 	"github.com/AsterOzlob/content_managment_api/pkg/utils"
 	"github.com/gin-gonic/gin"
-	"github.com/sirupsen/logrus"
 )
 
 // MediaController предоставляет методы для управления медиафайлами через HTTP API.
 type MediaController struct {
-	service     *services.MediaService // service - экземпляр MediaService для выполнения бизнес-логики.
-	Logger      logger.Logger          // Logger - интерфейсный логгер
-	MediaConfig *config.MediaConfig    // MediaConfig - конфигурация для работы с медиафайлами.
+	service     *services.MediaService
+	mediaConfig *config.MediaConfig
 }
 
 // NewMediaController создаёт новый экземпляр MediaController.
 func NewMediaController(
 	service *services.MediaService,
-	logger logger.Logger,
 	mediaConfig *config.MediaConfig,
 ) *MediaController {
 	return &MediaController{
 		service:     service,
-		Logger:      logger,
-		MediaConfig: mediaConfig,
+		mediaConfig: mediaConfig,
 	}
 }
 
-// @Summary Upload a media file with article ID
-// @Description Upload a new media file and associate it with an article.
-// @Tags Media
+// @Summary Загрузить медиафайл с привязкой к статье
+// @Description Загружает новый медиафайл и связывает его со статьёй по ID.
+// @Tags Медиафайлы
 // @Accept multipart/form-data
 // @Produce json
-// @Param article_id formData uint true "Article ID"
-// @Param file formData file true "Media File"
+// @Param article_id formData uint true "ID статьи"
+// @Param file formData file true "Медиафайл"
 // @Security BearerAuth
 // @Success 201 {object} dto.MediaResponse
 // @Failure 400 {object} map[string]string
@@ -52,35 +47,32 @@ func NewMediaController(
 func (c *MediaController) UploadFileWithArticle(ctx *gin.Context) {
 	userID, err := utils.GetUserIDFromContext(ctx)
 	if err != nil {
-		c.Logger.WithError(err).Error("Failed to get user ID from context")
-		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "пользователь не аутентифицирован"})
 		return
 	}
 
 	userRoles, err := utils.GetUserRolesFromContext(ctx)
 	if err != nil {
-		c.Logger.WithError(err).Error("Failed to get user roles from context")
-		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "роли пользователя не найдены"})
 		return
 	}
 
 	articleIDStr := ctx.PostForm("article_id")
 	articleID, err := strconv.ParseUint(articleIDStr, 10, 64)
 	if err != nil {
-		c.Logger.WithError(err).Error("Invalid article ID")
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid article ID"})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "неверный ID статьи"})
 		return
 	}
 
 	c.uploadFileInternal(ctx, uint(articleID), userID, userRoles)
 }
 
-// @Summary Upload an unlinked media file
-// @Description Upload a new media file without associating it with any article.
-// @Tags Media
+// @Summary Загрузить медиафайл без привязки к статье
+// @Description Загружает медиафайл без связи со статьёй.
+// @Tags Медиафайлы
 // @Accept multipart/form-data
 // @Produce json
-// @Param file formData file true "Media File"
+// @Param file formData file true "Медиафайл"
 // @Security BearerAuth
 // @Success 201 {object} dto.MediaResponse
 // @Failure 400 {object} map[string]string
@@ -88,22 +80,20 @@ func (c *MediaController) UploadFileWithArticle(ctx *gin.Context) {
 func (c *MediaController) UploadUnlinkedFile(ctx *gin.Context) {
 	userID, err := utils.GetUserIDFromContext(ctx)
 	if err != nil {
-		c.Logger.WithError(err).Error("Failed to get user ID from context")
-		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "пользователь не аутентифицирован"})
 		return
 	}
 
 	userRoles, err := utils.GetUserRolesFromContext(ctx)
 	if err != nil {
-		c.Logger.WithError(err).Error("Failed to get user roles from context")
-		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "роли пользователя не найдены"})
 		return
 	}
 
 	c.uploadFileInternal(ctx, 0, userID, userRoles)
 }
 
-// Внутренняя универсальная функция загрузки
+// uploadFileInternal — внутренняя функция загрузки файла.
 func (c *MediaController) uploadFileInternal(
 	ctx *gin.Context,
 	articleID uint,
@@ -112,37 +102,29 @@ func (c *MediaController) uploadFileInternal(
 ) {
 	file, err := ctx.FormFile("file")
 	if err != nil {
-		c.Logger.WithError(err).Error("Failed to get file from request")
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "failed to get file"})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "не удалось получить файл"})
 		return
 	}
 
-	if file.Size > c.MediaConfig.MaxSize {
-		c.Logger.WithFields(logrus.Fields{
-			"file_size": file.Size,
-			"max_size":  c.MediaConfig.MaxSize,
-		}).Warn("File size exceeds the limit")
-		ctx.JSON(http.StatusRequestEntityTooLarge, gin.H{"error": "file size exceeds the limit"})
+	if file.Size > c.mediaConfig.MaxSize {
+		ctx.JSON(http.StatusRequestEntityTooLarge, gin.H{"error": "размер файла превышает допустимый лимит"})
 		return
 	}
 
 	fileType := file.Header.Get("Content-Type")
-	if len(c.MediaConfig.AllowedTypes) > 0 && !slices.Contains(c.MediaConfig.AllowedTypes, fileType) {
-		c.Logger.WithField("file_type", fileType).Warn("File type is not allowed")
-		ctx.JSON(http.StatusUnsupportedMediaType, gin.H{"error": "file type is not allowed"})
+	if len(c.mediaConfig.AllowedTypes) > 0 && !slices.Contains(c.mediaConfig.AllowedTypes, fileType) {
+		ctx.JSON(http.StatusUnsupportedMediaType, gin.H{"error": "тип файла не поддерживается"})
 		return
 	}
 
 	fileName := fmt.Sprintf("%d_%s", time.Now().Unix(), filepath.Base(file.Filename))
-	filePath := filepath.Join(c.MediaConfig.StoragePath, fileName)
+	filePath := filepath.Join(c.mediaConfig.StoragePath, fileName)
 
 	if err := ctx.SaveUploadedFile(file, filePath); err != nil {
-		c.Logger.WithError(err).Error("Failed to save uploaded file")
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save file"})
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "не удалось сохранить файл"})
 		return
 	}
 
-	// Формируем новый DTO
 	var articleIDPtr *uint
 	if articleID != 0 {
 		articleIDPtr = &articleID
@@ -157,7 +139,6 @@ func (c *MediaController) uploadFileInternal(
 
 	media, err := c.service.UploadFile(uploadInput, authorID, userRoles)
 	if err != nil {
-		c.Logger.WithError(err).Error("Failed to upload media file")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -165,32 +146,28 @@ func (c *MediaController) uploadFileInternal(
 	ctx.JSON(http.StatusCreated, mappers.MapToMediaResponse(media))
 }
 
-// @Summary Get all media files
-// @Description Get a list of all uploaded media files.
-// @Tags Media
+// @Summary Получить все медиафайлы
+// @Description Возвращает список всех загруженных медиафайлов.
+// @Tags Медиафайлы
 // @Produce json
 // @Security BearerAuth
 // @Success 200 {array} dto.MediaResponse
 // @Failure 500 {object} map[string]string
 // @Router /media [get]
 func (c *MediaController) GetAllMedia(ctx *gin.Context) {
-	c.Logger.Info("Fetching all media files in controller")
-
 	media, err := c.service.GetAllMedia()
 	if err != nil {
-		c.Logger.WithError(err).Error("Failed to fetch all media files")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-
 	ctx.JSON(http.StatusOK, mappers.MapToMediaListResponse(media))
 }
 
-// @Summary Get all media files by article ID
-// @Description Get all media files associated with a specific article.
-// @Tags Media
+// @Summary Получить медиафайлы по ID статьи
+// @Description Возвращает все медиафайлы, связанные со статьей по её ID.
+// @Tags Медиафайлы
 // @Produce json
-// @Param id path uint true "Article ID"
+// @Param id path uint true "ID статьи"
 // @Security BearerAuth
 // @Success 200 {array} dto.MediaResponse
 // @Failure 400 {object} map[string]string
@@ -200,30 +177,25 @@ func (c *MediaController) GetAllByArticleID(ctx *gin.Context) {
 	idStr := ctx.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
-		c.Logger.WithError(err).Error("Invalid article ID in GetAllByArticleID")
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid article ID"})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "неверный ID статьи"})
 		return
 	}
-
-	c.Logger.WithField("article_id", id).Info("Fetching media by article ID")
 
 	media, err := c.service.GetAllByArticleID(uint(id))
 	if err != nil {
-		c.Logger.WithError(err).Error("Failed to fetch media by article ID")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-
 	ctx.JSON(http.StatusOK, mappers.MapToMediaListResponse(media))
 }
 
-// @Summary Delete a media file
-// @Description Delete a media file by its ID.
-// @Tags Media
+// @Summary Удалить медиафайл
+// @Description Удаляет медиафайл по его уникальному идентификатору.
+// @Tags Медиафайлы
 // @Produce json
-// @Param id path uint true "Media ID"
+// @Param id path uint true "ID медиафайла"
 // @Security BearerAuth
-// @Success 200 {object} map[string]string "Successfully deleted"
+// @Success 200 {object} map[string]string
 // @Failure 400 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Router /media/{id} [delete]
@@ -231,32 +203,25 @@ func (c *MediaController) DeleteFile(ctx *gin.Context) {
 	idStr := ctx.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
-		c.Logger.WithError(err).Error("Invalid media ID in DeleteFile")
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid media ID"})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "неверный ID медиафайла"})
 		return
 	}
 
 	userID, err := utils.GetUserIDFromContext(ctx)
 	if err != nil {
-		c.Logger.WithError(err).Error("Failed to get user ID from context")
-		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "пользователь не аутентифицирован"})
 		return
 	}
 
 	userRoles, err := utils.GetUserRolesFromContext(ctx)
 	if err != nil {
-		c.Logger.WithError(err).Error("Failed to get user roles from context")
-		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "роли пользователя не найдены"})
 		return
 	}
 
-	c.Logger.WithField("media_id", id).Info("Deleting media file")
-
 	if err := c.service.DeleteFile(uint(id), userID, userRoles); err != nil {
-		c.Logger.WithError(err).Error("Failed to delete media file")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-
-	ctx.JSON(http.StatusOK, gin.H{"message": "media file deleted"})
+	ctx.JSON(http.StatusOK, gin.H{"message": "медиафайл успешно удалён"})
 }

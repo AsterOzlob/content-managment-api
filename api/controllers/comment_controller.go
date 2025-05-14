@@ -6,7 +6,6 @@ import (
 
 	"github.com/AsterOzlob/content_managment_api/internal/dto"
 	"github.com/AsterOzlob/content_managment_api/internal/dto/mappers"
-	logger "github.com/AsterOzlob/content_managment_api/internal/logger"
 	"github.com/AsterOzlob/content_managment_api/internal/services"
 	"github.com/AsterOzlob/content_managment_api/pkg/utils"
 	"github.com/gin-gonic/gin"
@@ -15,21 +14,20 @@ import (
 // CommentController предоставляет методы для управления комментариями через HTTP API.
 type CommentController struct {
 	service *services.CommentService
-	Logger  logger.Logger
 }
 
-// NewCommentController создает новый экземпляр CommentController.
-func NewCommentController(service *services.CommentService, logger logger.Logger) *CommentController {
-	return &CommentController{service: service, Logger: logger}
+// NewCommentController создаёт новый экземпляр CommentController.
+func NewCommentController(service *services.CommentService) *CommentController {
+	return &CommentController{service: service}
 }
 
-// @Summary Add a comment to an article
-// @Description Add a new comment to an article by its ID.
-// @Tags Comments
+// @Summary Добавить комментарий к статье
+// @Description Добавляет новый комментарий к статье по её ID.
+// @Tags Комментарии
 // @Accept json
 // @Produce json
-// @Param id path uint true "Article ID"
-// @Param comment body dto.CommentInput true "Comment Data"
+// @Param id path uint true "ID статьи"
+// @Param comment body dto.CommentInput true "Данные комментария"
 // @Security BearerAuth
 // @Success 201 {object} dto.CommentResponse
 // @Failure 400 {object} map[string]string
@@ -39,39 +37,35 @@ func (c *CommentController) AddCommentToArticle(ctx *gin.Context) {
 	articleIDStr := ctx.Param("id")
 	articleID, err := strconv.ParseUint(articleIDStr, 10, 64)
 	if err != nil {
-		c.Logger.WithError(err).WithField("article_id", articleIDStr).Error("Invalid article ID")
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid article ID"})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "неверный ID статьи"})
 		return
 	}
 
 	var input dto.CommentInput
 	if err := ctx.ShouldBindJSON(&input); err != nil {
-		c.Logger.WithError(err).Error("Failed to bind JSON")
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	userID, err := utils.GetUserIDFromContext(ctx)
 	if err != nil {
-		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "user not authenticated"})
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "пользователь не аутентифицирован"})
 		return
 	}
 
 	comment, err := c.service.AddCommentToArticle(uint(articleID), input, userID)
 	if err != nil {
-		c.Logger.WithError(err).Error("Failed to add comment to article")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-
 	ctx.JSON(http.StatusCreated, mappers.MapToCommentResponse(comment))
 }
 
-// @Summary Get comments by article ID
-// @Description Get all comments for an article, including nested comments.
-// @Tags Comments
+// @Summary Получить комментарии по ID статьи
+// @Description Возвращает все комментарии для указанной статьи, включая вложенные.
+// @Tags Комментарии
 // @Produce json
-// @Param id path uint true "Article ID"
+// @Param id path uint true "ID статьи"
 // @Security BearerAuth
 // @Success 200 {array} dto.CommentResponse
 // @Failure 400 {object} map[string]string
@@ -82,30 +76,25 @@ func (c *CommentController) GetCommentsByArticleID(ctx *gin.Context) {
 	articleIDStr := ctx.Param("id")
 	articleID, err := strconv.ParseUint(articleIDStr, 10, 64)
 	if err != nil {
-		c.Logger.WithError(err).WithField("article_id", articleIDStr).Error("Invalid article ID")
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid article ID"})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "неверный ID статьи"})
 		return
 	}
-
-	c.Logger.WithField("article_id", articleID).Info("Fetching comments by article ID")
 
 	comments, err := c.service.GetCommentsByArticleID(uint(articleID))
 	if err != nil {
-		c.Logger.WithError(err).Error("Failed to fetch comments by article ID")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-
 	ctx.JSON(http.StatusOK, mappers.MapToCommentListResponse(comments))
 }
 
-// @Summary Update a comment
-// @Description Update an existing comment by ID if user is owner, moderator or admin.
-// @Tags Comments
+// @Summary Обновить комментарий
+// @Description Обновляет существующий комментарий по его ID, если пользователь — владелец, модератор или администратор.
+// @Tags Комментарии
 // @Accept json
 // @Produce json
-// @Param id path uint true "Comment ID"
-// @Param comment body dto.CommentInput true "Updated Comment Data"
+// @Param id path uint true "ID комментария"
+// @Param comment body dto.CommentInput true "Обновлённые данные комментария"
 // @Security BearerAuth
 // @Success 200 {object} dto.CommentResponse
 // @Failure 400 {object} map[string]string
@@ -117,52 +106,48 @@ func (c *CommentController) UpdateComment(ctx *gin.Context) {
 	commentIDStr := ctx.Param("id")
 	commentID, err := strconv.ParseUint(commentIDStr, 10, 64)
 	if err != nil {
-		c.Logger.WithError(err).WithField("comment_id", commentIDStr).Error("Invalid comment ID")
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid comment ID"})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "неверный ID комментария"})
 		return
 	}
 
 	var input dto.CommentInput
 	if err := ctx.ShouldBindJSON(&input); err != nil {
-		c.Logger.WithError(err).Error("Failed to bind JSON")
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	userID, err := utils.GetUserIDFromContext(ctx)
 	if err != nil {
-		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "user not authenticated"})
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "пользователь не аутентифицирован"})
 		return
 	}
 
 	userRoles, err := utils.GetUserRolesFromContext(ctx)
 	if err != nil {
-		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "user roles not found"})
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "роли пользователя не найдены"})
 		return
 	}
 
 	comment, err := c.service.UpdateComment(uint(commentID), input, userID, userRoles)
 	if err != nil {
 		switch err.Error() {
-		case "comment not found":
-			ctx.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
-		case "access denied: you are not the owner or don't have required role":
-			ctx.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+		case "комментарий не найден":
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "комментарий не найден"})
+		case "доступ запрещен: вы не являетесь владельцем или у вас нет необходимой роли":
+			ctx.JSON(http.StatusForbidden, gin.H{"error": "доступ запрещен"})
 		default:
-			c.Logger.WithError(err).Error("Failed to update comment")
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "внутренняя ошибка сервера"})
 		}
 		return
 	}
-
 	ctx.JSON(http.StatusOK, mappers.MapToCommentResponse(comment))
 }
 
-// @Summary Delete a comment
-// @Description Delete a comment by its ID.
-// @Tags Comments
+// @Summary Удалить комментарий
+// @Description Удаляет комментарий по его уникальному идентификатору.
+// @Tags Комментарии
 // @Produce json
-// @Param id path uint true "Comment ID"
+// @Param id path uint true "ID комментария"
 // @Security BearerAuth
 // @Success 200 {object} map[string]string
 // @Failure 400 {object} map[string]string
@@ -172,33 +157,25 @@ func (c *CommentController) DeleteComment(ctx *gin.Context) {
 	commentIDStr := ctx.Param("id")
 	commentID, err := strconv.ParseUint(commentIDStr, 10, 64)
 	if err != nil {
-		c.Logger.WithError(err).WithField("comment_id", commentIDStr).Error("Invalid comment ID")
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid comment ID"})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "неверный ID комментария"})
 		return
 	}
 
 	userID, err := utils.GetUserIDFromContext(ctx)
 	if err != nil {
-		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "user not authenticated"})
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "пользователь не аутентифицирован"})
 		return
 	}
 
 	userRoles, err := utils.GetUserRolesFromContext(ctx)
 	if err != nil {
-		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "user roles not found"})
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "роли пользователя не найдены"})
 		return
 	}
 
 	if err := c.service.DeleteComment(uint(commentID), userID, userRoles); err != nil {
-		switch err.Error() {
-		case "access denied: you are not the owner or don't have required role":
-			ctx.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
-		default:
-			c.Logger.WithError(err).Error("Failed to delete comment")
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
-		}
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "внутренняя ошибка сервера"})
 		return
 	}
-
-	ctx.JSON(http.StatusOK, gin.H{"message": "comment deleted"})
+	ctx.JSON(http.StatusOK, gin.H{"message": "комментарий удален"})
 }
