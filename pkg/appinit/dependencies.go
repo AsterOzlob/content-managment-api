@@ -1,4 +1,4 @@
-package app
+package appinit
 
 import (
 	"github.com/AsterOzlob/content_managment_api/api/controllers"

@@ -1,14 +1,15 @@
-package app
+package appinit
 
 import (
 	"github.com/AsterOzlob/content_managment_api/config"
 	"github.com/AsterOzlob/content_managment_api/internal/database"
+	"github.com/AsterOzlob/content_managment_api/internal/database/migrations"
 	"github.com/AsterOzlob/content_managment_api/internal/logger"
 	"gorm.io/gorm"
 )
 
 // InitializeApp выполняет начальную настройку приложения:
-// загрузку конфигурации, подключение к базе данных и выполнение миграций.
+// загрузку конфигурации, подключение к базе данных и выполнение миграций c сидами.
 func InitializeApp(logger logger.Logger) (*config.Config, *gorm.DB) {
 	// Загрузка конфигурации из .env файла или переменных окружения.
 	cfg, err := config.LoadConfig(logger)
@@ -25,7 +26,7 @@ func InitializeApp(logger logger.Logger) (*config.Config, *gorm.DB) {
 	}
 
 	// Выполнение миграций для создания таблиц в базе данных.
-	if err := database.MigrateModels(dbConn, logger); err != nil {
+	if err := migrations.MigrateModels(dbConn, logger); err != nil {
 		logger.WithError(err).Error("Error migrating models")
 		return nil, nil
 	}

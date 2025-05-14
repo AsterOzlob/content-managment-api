@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 	"path/filepath"
-	"slices"
 	"strconv"
 	"time"
 
@@ -112,7 +111,16 @@ func (c *MediaController) uploadFileInternal(
 	}
 
 	fileType := file.Header.Get("Content-Type")
-	if len(c.mediaConfig.AllowedTypes) > 0 && !slices.Contains(c.mediaConfig.AllowedTypes, fileType) {
+
+	allowed := false
+	for _, allowedType := range c.mediaConfig.AllowedTypes {
+		if allowedType == fileType {
+			allowed = true
+			break
+		}
+	}
+
+	if !allowed {
 		ctx.JSON(http.StatusUnsupportedMediaType, gin.H{"error": "тип файла не поддерживается"})
 		return
 	}

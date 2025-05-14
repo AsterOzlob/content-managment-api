@@ -2,12 +2,12 @@ package routes
 
 import (
 	"github.com/AsterOzlob/content_managment_api/api/middleware"
-	"github.com/AsterOzlob/content_managment_api/cmd/app"
+	"github.com/AsterOzlob/content_managment_api/pkg/appinit"
 	"github.com/gin-gonic/gin"
 )
 
 // RegisterArticleRoutes регистрирует маршруты для управления контентом.
-func RegisterArticleRoutes(r *gin.Engine, deps *app.Dependencies) {
+func RegisterArticleRoutes(r *gin.Engine, deps *appinit.Dependencies) {
 	content := r.Group("/articles")
 	{
 		// Открытые эндпоинты (без аутентификации)
