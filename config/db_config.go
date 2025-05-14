@@ -1,30 +1,29 @@
 package config
 
 import (
-	logger "github.com/AsterOzlob/content_managment_api/internal/logger"
-	"github.com/joho/godotenv"
+	"fmt"
+
+	"github.com/ilyakaznacheev/cleanenv"
 )
 
 // DBConfig содержит настройки для подключения к базе данных.
 type DBConfig struct {
-	DBHost     string
-	DBPort     string
-	DBUser     string
-	DBPassword string
-	DBName     string
+	Host     string `env:"DB_HOST" env-default:"localhost"`
+	Port     string `env:"DB_PORT" env-default:"5432"`
+	User     string `env:"DB_USER" env-default:"postgres"`
+	Password string `env:"DB_PASSWORD" env-default:"password"`
+	Name     string `env:"DB_NAME" env-default:"content_management"`
+	SSLMode  string `env:"DB_SSL_MODE" env-default:"disable"`
 }
 
-// LoadDBConfig загружает конфигурацию базы данных.
-func LoadDBConfig(logger logger.Logger) (*DBConfig, error) {
-	if err := godotenv.Load("./.env"); err != nil {
-		logger.Warn("No .env file found, using environment variables")
+// LoadDBConfig загружает конфигурацию базы данных из переменных окружения.
+func LoadDBConfig() (*DBConfig, error) {
+	var cfg DBConfig
+
+	err := cleanenv.ReadEnv(&cfg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read DB config from environment: %w", err)
 	}
 
-	return &DBConfig{
-		DBHost:     getEnv("DB_HOST", "localhost"),
-		DBPort:     getEnv("DB_PORT", "5432"),
-		DBUser:     getEnv("DB_USER", "postgres"),
-		DBPassword: getEnv("DB_PASSWORD", "password"),
-		DBName:     getEnv("DB_NAME", "content_management"),
-	}, nil
+	return &cfg, nil
 }

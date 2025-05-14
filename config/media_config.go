@@ -2,43 +2,25 @@ package config
 
 import (
 	"fmt"
-	"strings"
 
-	logger "github.com/AsterOzlob/content_managment_api/internal/logger"
+	"github.com/ilyakaznacheev/cleanenv"
 )
 
 // MediaConfig содержит настройки для работы с медиафайлами.
 type MediaConfig struct {
-	StoragePath  string   // Путь для хранения файлов
-	AllowedTypes []string // Разрешенные типы файлов
-	MaxSize      int64    // Максимальный размер файла (в байтах)
+	StoragePath  string `env:"MEDIA_STORAGE_PATH" env-default:"./uploads"`
+	AllowedTypes string `env:"MEDIA_ALLOWED_TYPES" env-default:"image/jpeg,image/png,application/pdf"`
+	MaxSize      int64  `env:"MEDIA_MAX_SIZE" env-default:"5242880"` // in bytes
 }
 
-// LoadMediaConfig загружает конфигурацию для медиафайлов.
-func LoadMediaConfig(logger logger.Logger) (*MediaConfig, error) {
-	storagePath := getEnv("MEDIA_STORAGE_PATH", "./uploads")
-	allowedTypesStr := getEnv("MEDIA_ALLOWED_TYPES", "image/jpeg,image/png,application/pdf")
-	maxSizeStr := getEnv("MEDIA_MAX_SIZE", "5242880") // Default: 5 MB (5_242_880 байт)
+// LoadMediaConfig загружает конфигурацию для медиафайлов из переменных окружения.
+func LoadMediaConfig() (*MediaConfig, error) {
+	var cfg MediaConfig
 
-	// Парсинг MaxSize
-	var maxSizeInt int64
-	_, err := fmt.Sscanf(maxSizeStr, "%d", &maxSizeInt)
+	err := cleanenv.ReadEnv(&cfg)
 	if err != nil {
-		logger.WithError(err).Warn("Invalid MEDIA_MAX_SIZE value, using default 5 MB (5242880 bytes)")
-		maxSizeInt = 5242880
+		return nil, fmt.Errorf("failed to read Media config from environment: %w", err)
 	}
 
-	return &MediaConfig{
-		StoragePath:  storagePath,
-		AllowedTypes: splitString(allowedTypesStr, ","),
-		MaxSize:      maxSizeInt,
-	}, nil
-}
-
-// Вспомогательная функция для разбиения строки по разделителю.
-func splitString(input, delimiter string) []string {
-	if input == "" {
-		return []string{}
-	}
-	return strings.Split(input, delimiter)
+	return &cfg, nil
 }

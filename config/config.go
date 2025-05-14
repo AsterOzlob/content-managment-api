@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-	"os"
 
 	logger "github.com/AsterOzlob/content_managment_api/internal/logger"
 )
@@ -16,19 +15,19 @@ type Config struct {
 
 // LoadConfig загружает общую конфигурацию приложения.
 func LoadConfig(logger logger.Logger) (*Config, error) {
-	dbConfig, err := LoadDBConfig(logger)
+	dbConfig, err := LoadDBConfig()
 	if err != nil {
 		logger.WithError(err).Error("Failed to load DB config")
 		return nil, fmt.Errorf("failed to load DB config: %w", err)
 	}
 
-	jwtConfig, err := LoadJWTConfig(logger)
+	jwtConfig, err := LoadJWTConfig()
 	if err != nil {
 		logger.WithError(err).Error("Failed to load JWT config")
 		return nil, fmt.Errorf("failed to load JWT config: %w", err)
 	}
 
-	mediaConfig, err := LoadMediaConfig(logger)
+	mediaConfig, err := LoadMediaConfig()
 	if err != nil {
 		logger.WithError(err).Error("Failed to load Media config")
 		return nil, fmt.Errorf("failed to load Media config: %w", err)
@@ -39,12 +38,4 @@ func LoadConfig(logger logger.Logger) (*Config, error) {
 		JWTConfig:   jwtConfig,
 		MediaConfig: mediaConfig,
 	}, nil
-}
-
-// Вспомогательная функция для получения переменной окружения с fallback-значением.
-func getEnv(key, fallback string) string {
-	if value, exists := os.LookupEnv(key); exists {
-		return value
-	}
-	return fallback
 }
