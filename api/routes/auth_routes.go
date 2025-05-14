@@ -1,12 +1,12 @@
 package routes
 
 import (
-	"github.com/AsterOzlob/content_managment_api/cmd/app"
+	"github.com/AsterOzlob/content_managment_api/pkg/appinit"
 	"github.com/gin-gonic/gin"
 )
 
 // RegisterAuthRoutes регистрирует маршруты для аутентификации.
-func RegisterAuthRoutes(r *gin.Engine, deps *app.Dependencies) {
+func RegisterAuthRoutes(r *gin.Engine, deps *appinit.Dependencies) {
 	auth := r.Group("/users")
 	{
 		// Открытые эндпоинты

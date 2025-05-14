@@ -2,12 +2,12 @@ package routes
 
 import (
 	"github.com/AsterOzlob/content_managment_api/api/middleware"
-	"github.com/AsterOzlob/content_managment_api/cmd/app"
+	"github.com/AsterOzlob/content_managment_api/pkg/appinit"
 	"github.com/gin-gonic/gin"
 )
 
 // RegisterUserRoutes регистрирует маршруты для управления пользователями.
-func RegisterUserRoutes(r *gin.Engine, deps *app.Dependencies) {
+func RegisterUserRoutes(r *gin.Engine, deps *appinit.Dependencies) {
 	user := r.Group("/users")
 	{
 		// Защищенные эндпоинты

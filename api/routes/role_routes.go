@@ -2,12 +2,12 @@ package routes
 
 import (
 	"github.com/AsterOzlob/content_managment_api/api/middleware"
-	"github.com/AsterOzlob/content_managment_api/cmd/app"
+	"github.com/AsterOzlob/content_managment_api/pkg/appinit"
 	"github.com/gin-gonic/gin"
 )
 
 // RegisterRoleRoutes регистрирует маршруты для управления ролями.
-func RegisterRoleRoutes(router *gin.Engine, deps *app.Dependencies) {
+func RegisterRoleRoutes(router *gin.Engine, deps *appinit.Dependencies) {
 	roleGroup := router.Group("/roles")
 	{
 		// Защищенные эндпоинты

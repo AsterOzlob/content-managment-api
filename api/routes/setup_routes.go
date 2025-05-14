@@ -1,12 +1,11 @@
 package routes
 
 import (
-	"github.com/AsterOzlob/content_managment_api/cmd/app"
-
+	"github.com/AsterOzlob/content_managment_api/pkg/appinit"
 	"github.com/gin-gonic/gin"
 )
 
-func SetupRoutes(router *gin.Engine, deps *app.Dependencies) {
+func SetupRoutes(router *gin.Engine, deps *appinit.Dependencies) {
 	// Регистрация маршрутов для аутентификации
 	RegisterAuthRoutes(router, deps)
 	// Регистрация маршрутов для пользователей

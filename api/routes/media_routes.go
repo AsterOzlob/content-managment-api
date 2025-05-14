@@ -2,12 +2,12 @@ package routes
 
 import (
 	"github.com/AsterOzlob/content_managment_api/api/middleware"
-	"github.com/AsterOzlob/content_managment_api/cmd/app"
+	"github.com/AsterOzlob/content_managment_api/pkg/appinit"
 	"github.com/gin-gonic/gin"
 )
 
 // RegisterMediaRoutes настраивает маршруты для управления медиафайлами.
-func RegisterMediaRoutes(r *gin.Engine, deps *app.Dependencies) {
+func RegisterMediaRoutes(r *gin.Engine, deps *appinit.Dependencies) {
 	mediaGroup := r.Group("/media")
 	{
 		protected := mediaGroup.Group("/")

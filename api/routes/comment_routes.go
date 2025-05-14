@@ -2,12 +2,12 @@ package routes
 
 import (
 	"github.com/AsterOzlob/content_managment_api/api/middleware"
-	"github.com/AsterOzlob/content_managment_api/cmd/app"
+	"github.com/AsterOzlob/content_managment_api/pkg/appinit"
 	"github.com/gin-gonic/gin"
 )
 
 // RegisterCommentRoutes регистрирует маршруты для управления комментариями.
-func RegisterCommentRoutes(r *gin.Engine, deps *app.Dependencies) {
+func RegisterCommentRoutes(r *gin.Engine, deps *appinit.Dependencies) {
 	content := r.Group("/articles")
 	{
 		protected := content.Group("/")
