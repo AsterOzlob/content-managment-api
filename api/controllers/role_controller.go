@@ -26,6 +26,7 @@ func NewRoleController(service *services.RoleService) *RoleController {
 // @Accept json
 // @Produce json
 // @Param role body dto.RoleCreateDTO true "Данные роли"
+// @Security BearerAuth
 // @Success 201 {object} dto.RoleResponseDTO
 // @Failure 400 {object} map[string]string
 // @Failure 500 {object} map[string]string
@@ -49,6 +50,7 @@ func (c *RoleController) CreateRole(ctx *gin.Context) {
 // @Description Возвращает список всех ролей в системе.
 // @Tags Роли
 // @Produce json
+// @Security BearerAuth
 // @Success 200 {array} dto.RoleResponseDTO
 // @Failure 500 {object} map[string]string
 // @Router /roles [get]
@@ -66,6 +68,7 @@ func (c *RoleController) GetAllRoles(ctx *gin.Context) {
 // @Tags Роли
 // @Produce json
 // @Param id path uint true "ID роли"
+// @Security BearerAuth
 // @Success 200 {object} dto.RoleResponseDTO
 // @Failure 400 {object} map[string]string
 // @Failure 404 {object} map[string]string
@@ -94,6 +97,7 @@ func (c *RoleController) GetRoleByID(ctx *gin.Context) {
 // @Produce json
 // @Param id path uint true "ID роли"
 // @Param role body dto.RoleUpdateDTO true "Обновлённые данные роли"
+// @Security BearerAuth
 // @Success 200 {object} dto.RoleResponseDTO
 // @Failure 400 {object} map[string]string
 // @Failure 404 {object} map[string]string
@@ -126,6 +130,7 @@ func (c *RoleController) UpdateRole(ctx *gin.Context) {
 // @Tags Роли
 // @Produce json
 // @Param id path uint true "ID роли"
+// @Security BearerAuth
 // @Success 200 {object} map[string]string
 // @Failure 400 {object} map[string]string
 // @Failure 500 {object} map[string]string
