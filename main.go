@@ -9,8 +9,6 @@ import (
 	"github.com/AsterOzlob/content_managment_api/internal/scheduler"
 	"github.com/AsterOzlob/content_managment_api/pkg/appinit"
 	"github.com/joho/godotenv"
-	swaggerFiles "github.com/swaggo/files"
-	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 // @title           Content Management API
@@ -57,9 +55,6 @@ func main() {
 
 	// Настройка маршрутизатора и эндпоинтов API.
 	r := routes.SetupRouter(deps, appLogger)
-
-	// Добавляем эндпоинт для Swagger
-	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	// Определяем адрес сервера и запускаем HTTP-сервер.
 	serverAddress := ":8080"
