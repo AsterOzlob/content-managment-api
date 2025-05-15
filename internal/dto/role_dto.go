@@ -2,21 +2,21 @@ package dto
 
 // RoleCreateDTO представляет данные для создания роли.
 type RoleCreateDTO struct {
-	Name        string `json:"name" binding:"required" example:"admin"`  // Название роли.
-	Description string `json:"description" example:"Administrator role"` // Описание роли.
+	Name        string `json:"name" binding:"required"` // Название роли.
+	Description string `json:"description"`             // Описание роли.
 }
 
 // RoleUpdateDTO представляет данные для обновления роли.
 type RoleUpdateDTO struct {
-	Name        string `json:"name" binding:"required" example:"editor"` // Новое название роли.
-	Description string `json:"description" example:"Editor role"`        // Новое описание роли.
+	Name        string `json:"name" binding:"required"` // Новое название роли.
+	Description string `json:"description"`             // Новое описание роли.
 }
 
 // RoleResponseDTO представляет данные роли для ответа клиенту.
 type RoleResponseDTO struct {
-	ID          uint   `json:"id" example:"1"`                            // Уникальный идентификатор роли.
-	Name        string `json:"name" example:"admin"`                      // Название роли.
-	Description string `json:"description" example:"Administrator role"`  // Описание роли.
-	CreatedAt   string `json:"created_at" example:"2023-01-01T12:00:00Z"` // Дата создания записи.
-	UpdatedAt   string `json:"updated_at" example:"2023-01-01T12:00:00Z"` // Дата последнего обновления записи.
+	ID          uint   `json:"id"`          // Уникальный идентификатор роли.
+	Name        string `json:"name"`        // Название роли.
+	Description string `json:"description"` // Описание роли.
+	CreatedAt   string `json:"created_at"`  // Дата создания записи.
+	UpdatedAt   string `json:"updated_at"`  // Дата последнего обновления записи.
 }

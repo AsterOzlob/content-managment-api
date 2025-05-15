@@ -1,0 +1,29 @@
+services:
+  cms-api:
+    build: .
+    container_name: cms-api
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    volumes:
+      - ./uploads:/uploads
+    depends_on:
+      - db
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    container_name: cms-db
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
