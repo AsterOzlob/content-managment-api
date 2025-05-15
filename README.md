@@ -30,7 +30,7 @@ API соответствует **принципам REST**, использует
 1. Склонируйте репозиторий:
    ```bash
    git clone https://github.com/AsterOzlob/content-managment-api.git
-   cd content_managment_api
+   cd content-managment-api
    ```
 
 2. Создайте `.env` файл из примера:
