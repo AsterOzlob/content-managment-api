@@ -29,13 +29,13 @@ API соответствует **принципам REST**, использует
 
 1. Склонируйте репозиторий:
    ```bash
-   git clone https://github.com/AsterOzlob/content_managment_api.git
-   cd content_managment_api
+   git clone https://github.com/AsterOzlob/content-managment-api.git
+   cd content-managment-api
    ```
 
 2. Создайте `.env` файл из примера:
    ```bash
-   cp .env.example .env
+   copy .env.example .env
    ```
    При необходимости измените значения переменных окружения.
 
@@ -47,7 +47,7 @@ API соответствует **принципам REST**, использует
 
 4. Откройте документацию:
    ```
-   http://localhost:8080/docs/index.html
+   http://localhost:8080/docs
    ```
 
 5. Остановите приложение:
