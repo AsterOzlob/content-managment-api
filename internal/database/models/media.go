@@ -1,6 +1,11 @@
 package models
 
-import "time"
+import (
+	"time"
+
+	"github.com/AsterOzlob/content_managment_api/pkg/utils"
+	"gorm.io/gorm"
+)
 
 // Media представляет медиафайл, связанный с контентом.
 type Media struct {
@@ -12,4 +17,18 @@ type Media struct {
 	FileSize  int64     `json:"file_size" gorm:"not null"`                      // Размер файла в байтах.
 	CreatedAt time.Time `json:"created_at"`                                     // Дата загрузки файла.
 	UpdatedAt time.Time `json:"updated_at"`                                     // Дата последнего обновления записи.
+}
+
+// BeforeCreate вызывается перед сохранением новой записи.
+// Предназначена для санитизации строковых полей и защиты от XSS-атак.
+func (m *Media) BeforeCreate(tx *gorm.DB) (err error) {
+	m.FilePath = utils.Sanitize(m.FilePath)
+	return nil
+}
+
+// BeforeUpdate вызывается перед обновлением записи.
+// Используется для очистки данных от потенциально опасного HTML/JS.
+func (m *Media) BeforeUpdate(tx *gorm.DB) (err error) {
+	m.FilePath = utils.Sanitize(m.FilePath)
+	return nil
 }

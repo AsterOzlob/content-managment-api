@@ -1,6 +1,11 @@
 package models
 
-import "time"
+import (
+	"time"
+
+	"github.com/AsterOzlob/content_managment_api/pkg/utils"
+	"gorm.io/gorm"
+)
 
 // Comment представляет комментарий к контенту.
 type Comment struct {
@@ -14,4 +19,18 @@ type Comment struct {
 
 	// Вложенные комментарии (рекурсивная связь)
 	Replies []Comment `json:"replies,omitempty" gorm:"foreignKey:ParentID;constraint:OnDelete:CASCADE;"` // Дочерние комментарии.
+}
+
+// BeforeCreate вызывается перед сохранением новой записи.
+// Предназначена для санитизации строковых полей и защиты от XSS-атак.
+func (c *Comment) BeforeCreate(tx *gorm.DB) (err error) {
+	c.Text = utils.Sanitize(c.Text)
+	return nil
+}
+
+// BeforeUpdate вызывается перед обновлением записи.
+// Используется для очистки данных от потенциально опасного HTML/JS.
+func (c *Comment) BeforeUpdate(tx *gorm.DB) (err error) {
+	c.Text = utils.Sanitize(c.Text)
+	return nil
 }
