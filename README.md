@@ -29,7 +29,7 @@ API соответствует **принципам REST**, использует
 
 1. Склонируйте репозиторий:
    ```bash
-   git clone https://github.com/AsterOzlob/content_managment_api.git
+   git clone https://github.com/AsterOzlob/content-managment-api.git
    cd content_managment_api
    ```
 
