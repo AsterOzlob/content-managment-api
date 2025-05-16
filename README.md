@@ -145,7 +145,7 @@ API соответствует **принципам REST**, использует
 
 После запуска приложения документация API доступна по адресу:
 - http://localhost:8080/docs
-- http://localhost:8080/swagger/index/html
+- http://localhost:8080/swagger/index.html
 
 ---
 
