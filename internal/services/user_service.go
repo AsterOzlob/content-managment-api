@@ -1,9 +1,12 @@
 package services
 
 import (
+	"errors"
+
 	"github.com/AsterOzlob/content_managment_api/internal/database/models"
 	"github.com/AsterOzlob/content_managment_api/internal/database/repositories"
 	logger "github.com/AsterOzlob/content_managment_api/internal/logger"
+	apperrors "github.com/AsterOzlob/content_managment_api/pkg/errors"
 )
 
 // UserService предоставляет методы для работы с пользователями.
@@ -22,7 +25,7 @@ func (s *UserService) GetAllUsers() ([]*models.User, error) {
 	users, err := s.repo.GetAll()
 	if err != nil {
 		s.Logger.WithError(err).Error("Failed to fetch all users from repository")
-		return nil, err
+		return nil, errors.New(apperrors.ErrInternalServerError)
 	}
 	return users, nil
 }
@@ -32,7 +35,7 @@ func (s *UserService) GetUserByID(id uint) (*models.User, error) {
 	user, err := s.repo.GetByID(id)
 	if err != nil {
 		s.Logger.WithError(err).WithField("user_id", id).Error("Failed to fetch user by ID from repository")
-		return nil, err
+		return nil, errors.New(apperrors.ErrUserNotFound)
 	}
 	return user, nil
 }
@@ -41,7 +44,7 @@ func (s *UserService) GetUserByID(id uint) (*models.User, error) {
 func (s *UserService) DeleteUser(targetUserID uint) error {
 	if err := s.repo.Delete(targetUserID); err != nil {
 		s.Logger.WithError(err).WithField("user_id", targetUserID).Error("Failed to delete user from repository")
-		return err
+		return errors.New(apperrors.ErrUserNotFound)
 	}
 	return nil
 }
@@ -54,7 +57,7 @@ func (s *UserService) AssignRole(targetUserID uint, roleName string) error {
 				"user_id": targetUserID,
 				"role":    roleName,
 			}).Error("Failed to assign role to user in repository")
-		return err
+		return errors.New(apperrors.ErrFailedToAssignRole)
 	}
 	return nil
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/AsterOzlob/content_managment_api/internal/database/repositories"
 	"github.com/AsterOzlob/content_managment_api/internal/dto"
 	logger "github.com/AsterOzlob/content_managment_api/internal/logger"
+	apperrors "github.com/AsterOzlob/content_managment_api/pkg/errors"
 	"github.com/AsterOzlob/content_managment_api/pkg/utils"
 )
 
@@ -41,7 +42,7 @@ func (s *CommentService) GetCommentsByArticleID(articleID uint) ([]*models.Comme
 	comments, err := s.repo.GetByArticleID(articleID)
 	if err != nil {
 		s.Logger.WithError(err).Error("Failed to fetch comments by article ID from repository")
-		return nil, err
+		return nil, errors.New(apperrors.ErrArticleNotFound)
 	}
 	return comments, nil
 }
@@ -50,10 +51,10 @@ func (s *CommentService) GetCommentsByArticleID(articleID uint) ([]*models.Comme
 func (s *CommentService) UpdateComment(id uint, input dto.CommentInput, userID uint, roles []string) (*models.Comment, error) {
 	comment, err := s.repo.GetByID(id)
 	if err != nil {
-		return nil, err
+		return nil, errors.New(apperrors.ErrCommentNotFound)
 	}
 	if !utils.IsOwner(comment.AuthorID, userID, roles) {
-		return nil, errors.New("access denied: you are not the owner or don't have required role")
+		return nil, errors.New(apperrors.ErrAccessDenied)
 	}
 	comment.Text = input.Text
 	if err := s.repo.Update(comment); err != nil {
@@ -67,11 +68,11 @@ func (s *CommentService) UpdateComment(id uint, input dto.CommentInput, userID u
 func (s *CommentService) DeleteComment(commentID uint, userID uint, userRoles []string) error {
 	comment, err := s.repo.GetByID(commentID)
 	if err != nil {
-		return err
+		return errors.New(apperrors.ErrCommentNotFound)
 	}
 	// Проверяем права через IsOwner
 	if !utils.IsOwner(comment.AuthorID, userID, userRoles) {
-		return errors.New("access denied: you are not the owner or don't have required role")
+		return errors.New(apperrors.ErrAccessDenied)
 	}
 	if err := s.repo.Delete(commentID); err != nil {
 		s.Logger.WithError(err).Error("Failed to delete comment from repository")

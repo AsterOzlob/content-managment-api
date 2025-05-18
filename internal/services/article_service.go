@@ -7,6 +7,7 @@ import (
 	"github.com/AsterOzlob/content_managment_api/internal/database/repositories"
 	"github.com/AsterOzlob/content_managment_api/internal/dto"
 	logger "github.com/AsterOzlob/content_managment_api/internal/logger"
+	apperrors "github.com/AsterOzlob/content_managment_api/pkg/errors"
 	"github.com/AsterOzlob/content_managment_api/pkg/utils"
 )
 
@@ -29,7 +30,7 @@ func (s *ArticleService) CreateArticle(input dto.ArticleInput, userID uint) (*mo
 			"error":     err.Error(),
 			"author_id": userID,
 		}).Error("User not found")
-		return nil, errors.New("user not found")
+		return nil, errors.New(apperrors.ErrUserNotFound)
 	}
 	article := &models.Article{
 		AuthorID:  userID,
@@ -49,7 +50,7 @@ func (s *ArticleService) GetAllArticles() ([]*models.Article, error) {
 	articles, err := s.repo.GetAll()
 	if err != nil {
 		s.Logger.WithError(err).Error("Failed to fetch all articles from repository")
-		return nil, err
+		return nil, errors.New(apperrors.ErrInternalServerError)
 	}
 	return articles, nil
 }
@@ -59,7 +60,7 @@ func (s *ArticleService) GetArticleByID(id uint) (*models.Article, error) {
 	article, err := s.repo.GetByID(id)
 	if err != nil {
 		s.Logger.WithError(err).Error("Failed to fetch article by ID from repository")
-		return nil, errors.New("article not found")
+		return nil, errors.New(apperrors.ErrArticleNotFound)
 	}
 	return article, nil
 }
@@ -69,10 +70,10 @@ func (s *ArticleService) UpdateArticle(id uint, input dto.ArticleInput, userID u
 	article, err := s.repo.GetByID(id)
 	if err != nil {
 		s.Logger.WithError(err).Error("Failed to fetch article by ID from repository")
-		return nil, errors.New("article not found")
+		return nil, errors.New(apperrors.ErrArticleNotFound)
 	}
 	if !utils.IsOwner(article.AuthorID, userID, userRoles) {
-		return nil, errors.New("access denied: you are not the owner or don't have required role")
+		return nil, errors.New(apperrors.ErrAccessDenied)
 	}
 	article.Title = input.Title
 	article.Text = input.Text
@@ -89,7 +90,7 @@ func (s *ArticleService) DeleteArticle(id uint, userID uint, userRoles []string)
 	article, err := s.repo.GetByID(id)
 	if err != nil {
 		s.Logger.WithError(err).Error("Failed to fetch article by ID from repository")
-		return errors.New("article not found")
+		return errors.New(apperrors.ErrArticleNotFound)
 	}
 	if !utils.IsOwner(article.AuthorID, userID, userRoles) {
 		s.Logger.WithFields(map[string]interface{}{
@@ -97,7 +98,7 @@ func (s *ArticleService) DeleteArticle(id uint, userID uint, userRoles []string)
 			"user_id":    userID,
 			"roles":      userRoles,
 		}).Warn("Access denied: user is not the owner or doesn't have required role")
-		return errors.New("access denied: you are not the owner or don't have required role")
+		return errors.New(apperrors.ErrAccessDenied)
 	}
 	if err := s.repo.Delete(id); err != nil {
 		s.Logger.WithError(err).Error("Failed to delete article from repository")

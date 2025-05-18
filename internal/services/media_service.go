@@ -2,13 +2,13 @@ package services
 
 import (
 	"errors"
-	"fmt"
 	"os"
 
 	"github.com/AsterOzlob/content_managment_api/internal/database/models"
 	"github.com/AsterOzlob/content_managment_api/internal/database/repositories"
 	"github.com/AsterOzlob/content_managment_api/internal/dto"
 	logger "github.com/AsterOzlob/content_managment_api/internal/logger"
+	apperrors "github.com/AsterOzlob/content_managment_api/pkg/errors"
 	"github.com/AsterOzlob/content_managment_api/pkg/utils"
 )
 
@@ -43,11 +43,11 @@ func (s *MediaService) UploadFile(
 		article, err := s.articleRepo.GetByID(*input.ArticleID)
 		if err != nil {
 			s.Logger.WithError(err).WithField("article_id", *input.ArticleID).Error("Failed to get article by ID")
-			return nil, fmt.Errorf("failed to get article: %w", err)
+			return nil, errors.New(apperrors.ErrArticleNotFound)
 		}
 		if !utils.IsOwner(article.AuthorID, authorID, userRoles) {
 			s.Logger.Warn("Access denied: user is not the author of the article")
-			return nil, errors.New("access denied: you are not the author of this article")
+			return nil, errors.New(apperrors.ErrAccessDenied)
 		}
 	}
 	media := &models.Media{
@@ -68,7 +68,7 @@ func (s *MediaService) GetAllMedia() ([]*models.Media, error) {
 	media, err := s.repo.GetAll()
 	if err != nil {
 		s.Logger.WithError(err).Error("Failed to fetch all media from repository")
-		return nil, err
+		return nil, errors.New(apperrors.ErrInternalServerError)
 	}
 	return media, nil
 }
@@ -78,7 +78,7 @@ func (s *MediaService) GetAllByArticleID(articleID uint) ([]*models.Media, error
 	media, err := s.repo.GetAllByArticleID(articleID)
 	if err != nil {
 		s.Logger.WithError(err).Error("Failed to fetch media by article ID from repository")
-		return nil, err
+		return nil, errors.New(apperrors.ErrInternalServerError)
 	}
 	return media, nil
 }
@@ -88,12 +88,12 @@ func (s *MediaService) DeleteFile(id uint, userID uint, userRoles []string) erro
 	media, err := s.repo.GetByID(id)
 	if err != nil {
 		s.Logger.WithError(err).Error("Failed to fetch media by ID from repository")
-		return errors.New("media not found")
+		return errors.New(apperrors.ErrMediaNotFound)
 	}
 	// Проверяем права пользователя: автор файла, модератор или админ
 	if !utils.IsOwner(media.AuthorID, userID, userRoles) {
 		s.Logger.Warn("Access denied: user is not the owner or doesn't have required role")
-		return errors.New("access denied: you are not the owner or don't have required role")
+		return errors.New(apperrors.ErrAccessDenied)
 	}
 	if err := s.repo.Delete(id); err != nil {
 		s.Logger.WithError(err).Error("Failed to delete media from repository")

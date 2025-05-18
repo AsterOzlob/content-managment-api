@@ -13,7 +13,7 @@ import (
 
 // @title           Content Management API
 // @version         1.0
-// @description     This is a RESTful API for managing users, roles, and content.
+// @description     This is a RESTful API for content managment.
 // @termsOfService  http://example.com/terms/
 
 // @contact.name   Тимошенко Антон

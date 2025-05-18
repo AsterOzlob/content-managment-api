@@ -6,6 +6,7 @@ import (
 	"github.com/AsterOzlob/content_managment_api/internal/dto"
 	dtomappers "github.com/AsterOzlob/content_managment_api/internal/dto/mappers"
 	"github.com/AsterOzlob/content_managment_api/internal/services"
+	apperrors "github.com/AsterOzlob/content_managment_api/pkg/errors"
 	"github.com/gin-gonic/gin"
 )
 
@@ -41,7 +42,14 @@ func (c *AuthController) SignUp(ctx *gin.Context) {
 
 	user, tokens, err := c.service.SignUp(input)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		switch err.Error() {
+		case apperrors.ErrUserAlreadyExists:
+			ctx.JSON(http.StatusConflict, gin.H{"error": apperrors.ErrUserAlreadyExists})
+		case apperrors.ErrFailedToAssignRole:
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": apperrors.ErrFailedToAssignRole})
+		default:
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": apperrors.ErrInternalServerError})
+		}
 		return
 	}
 	response := dtomappers.MapToAuthResponse(user, tokens.AccessToken, tokens.RefreshToken)
@@ -70,7 +78,12 @@ func (c *AuthController) Login(ctx *gin.Context) {
 
 	user, tokens, err := c.service.Login(input)
 	if err != nil {
-		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "неверные учётные данные"})
+		switch err.Error() {
+		case apperrors.ErrInvalidCredentials:
+			ctx.JSON(http.StatusUnauthorized, gin.H{"error": apperrors.ErrInvalidCredentials})
+		default:
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": apperrors.ErrInternalServerError})
+		}
 		return
 	}
 	response := dtomappers.MapToAuthResponse(user, tokens.AccessToken, tokens.RefreshToken)

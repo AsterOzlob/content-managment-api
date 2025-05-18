@@ -1,10 +1,13 @@
 package services
 
 import (
+	"errors"
+
 	"github.com/AsterOzlob/content_managment_api/internal/database/models"
 	"github.com/AsterOzlob/content_managment_api/internal/database/repositories"
 	"github.com/AsterOzlob/content_managment_api/internal/dto"
 	logger "github.com/AsterOzlob/content_managment_api/internal/logger"
+	apperrors "github.com/AsterOzlob/content_managment_api/pkg/errors"
 )
 
 // RoleService предоставляет методы для управления ролями.
@@ -36,7 +39,7 @@ func (s *RoleService) GetAllRoles() ([]*models.Role, error) {
 	roles, err := s.repo.GetAllRoles()
 	if err != nil {
 		s.Logger.WithError(err).Error("Failed to fetch all roles via service")
-		return nil, err
+		return nil, errors.New(apperrors.ErrInternalServerError)
 	}
 	return roles, nil
 }
@@ -46,7 +49,7 @@ func (s *RoleService) GetRoleByID(id uint) (*models.Role, error) {
 	role, err := s.repo.GetRoleByID(id)
 	if err != nil {
 		s.Logger.WithError(err).WithField("role_id", id).Error("Failed to fetch role by ID via service")
-		return nil, err
+		return nil, errors.New(apperrors.ErrRoleNotFound)
 	}
 	return role, nil
 }
@@ -56,7 +59,7 @@ func (s *RoleService) UpdateRole(id uint, input *dto.RoleUpdateDTO) (*models.Rol
 	role, err := s.repo.GetRoleByID(id)
 	if err != nil {
 		s.Logger.WithError(err).WithField("role_id", id).Error("Failed to fetch role for update via service")
-		return nil, err
+		return nil, errors.New(apperrors.ErrRoleNotFound)
 	}
 	if input.Name != "" {
 		role.Name = input.Name

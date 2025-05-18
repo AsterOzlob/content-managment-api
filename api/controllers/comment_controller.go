@@ -7,6 +7,7 @@ import (
 	"github.com/AsterOzlob/content_managment_api/internal/dto"
 	"github.com/AsterOzlob/content_managment_api/internal/dto/mappers"
 	"github.com/AsterOzlob/content_managment_api/internal/services"
+	apperrors "github.com/AsterOzlob/content_managment_api/pkg/errors"
 	"github.com/AsterOzlob/content_managment_api/pkg/utils"
 	"github.com/gin-gonic/gin"
 )
@@ -37,7 +38,7 @@ func (c *CommentController) AddCommentToArticle(ctx *gin.Context) {
 	articleIDStr := ctx.Param("id")
 	articleID, err := strconv.ParseUint(articleIDStr, 10, 64)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "неверный ID статьи"})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": apperrors.ErrInvalidArticleID})
 		return
 	}
 
@@ -49,13 +50,13 @@ func (c *CommentController) AddCommentToArticle(ctx *gin.Context) {
 
 	userID, err := utils.GetUserIDFromContext(ctx)
 	if err != nil {
-		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "пользователь не аутентифицирован"})
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": apperrors.ErrUserNotAuthenticated})
 		return
 	}
 
 	comment, err := c.service.AddCommentToArticle(uint(articleID), input, userID)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": apperrors.ErrInternalServerError})
 		return
 	}
 	ctx.JSON(http.StatusCreated, mappers.MapToCommentResponse(comment))
@@ -76,13 +77,18 @@ func (c *CommentController) GetCommentsByArticleID(ctx *gin.Context) {
 	articleIDStr := ctx.Param("id")
 	articleID, err := strconv.ParseUint(articleIDStr, 10, 64)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "неверный ID статьи"})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": apperrors.ErrInvalidArticleID})
 		return
 	}
 
 	comments, err := c.service.GetCommentsByArticleID(uint(articleID))
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		switch err.Error() {
+		case apperrors.ErrArticleNotFound:
+			ctx.JSON(http.StatusNotFound, gin.H{"error": apperrors.ErrArticleNotFound})
+		default:
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": apperrors.ErrInternalServerError})
+		}
 		return
 	}
 	ctx.JSON(http.StatusOK, mappers.MapToCommentListResponse(comments))
@@ -106,7 +112,7 @@ func (c *CommentController) UpdateComment(ctx *gin.Context) {
 	commentIDStr := ctx.Param("id")
 	commentID, err := strconv.ParseUint(commentIDStr, 10, 64)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "неверный ID комментария"})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid comment ID"})
 		return
 	}
 
@@ -118,25 +124,25 @@ func (c *CommentController) UpdateComment(ctx *gin.Context) {
 
 	userID, err := utils.GetUserIDFromContext(ctx)
 	if err != nil {
-		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "пользователь не аутентифицирован"})
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": apperrors.ErrUserNotAuthenticated})
 		return
 	}
 
 	userRoles, err := utils.GetUserRolesFromContext(ctx)
 	if err != nil {
-		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "роли пользователя не найдены"})
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": apperrors.ErrUserRolesNotFound})
 		return
 	}
 
 	comment, err := c.service.UpdateComment(uint(commentID), input, userID, userRoles)
 	if err != nil {
 		switch err.Error() {
-		case "комментарий не найден":
-			ctx.JSON(http.StatusNotFound, gin.H{"error": "комментарий не найден"})
-		case "доступ запрещен: вы не являетесь владельцем или у вас нет необходимой роли":
-			ctx.JSON(http.StatusForbidden, gin.H{"error": "доступ запрещен"})
+		case apperrors.ErrCommentNotFound:
+			ctx.JSON(http.StatusNotFound, gin.H{"error": apperrors.ErrCommentNotFound})
+		case apperrors.ErrAccessDenied:
+			ctx.JSON(http.StatusForbidden, gin.H{"error": apperrors.ErrAccessDenied})
 		default:
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "внутренняя ошибка сервера"})
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": apperrors.ErrInternalServerError})
 		}
 		return
 	}
@@ -157,25 +163,32 @@ func (c *CommentController) DeleteComment(ctx *gin.Context) {
 	commentIDStr := ctx.Param("id")
 	commentID, err := strconv.ParseUint(commentIDStr, 10, 64)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "неверный ID комментария"})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid comment ID"})
 		return
 	}
 
 	userID, err := utils.GetUserIDFromContext(ctx)
 	if err != nil {
-		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "пользователь не аутентифицирован"})
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": apperrors.ErrUserNotAuthenticated})
 		return
 	}
 
 	userRoles, err := utils.GetUserRolesFromContext(ctx)
 	if err != nil {
-		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "роли пользователя не найдены"})
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": apperrors.ErrUserRolesNotFound})
 		return
 	}
 
 	if err := c.service.DeleteComment(uint(commentID), userID, userRoles); err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "внутренняя ошибка сервера"})
+		switch err.Error() {
+		case apperrors.ErrCommentNotFound:
+			ctx.JSON(http.StatusNotFound, gin.H{"error": apperrors.ErrCommentNotFound})
+		case apperrors.ErrAccessDenied:
+			ctx.JSON(http.StatusForbidden, gin.H{"error": apperrors.ErrAccessDenied})
+		default:
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": apperrors.ErrInternalServerError})
+		}
 		return
 	}
-	ctx.JSON(http.StatusOK, gin.H{"message": "комментарий удален"})
+	ctx.JSON(http.StatusOK, gin.H{"message": "comment deleted"})
 }

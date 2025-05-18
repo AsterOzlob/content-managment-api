@@ -7,6 +7,7 @@ import (
 	"github.com/AsterOzlob/content_managment_api/internal/dto"
 	"github.com/AsterOzlob/content_managment_api/internal/dto/mappers"
 	"github.com/AsterOzlob/content_managment_api/internal/services"
+	apperrors "github.com/AsterOzlob/content_managment_api/pkg/errors"
 	"github.com/gin-gonic/gin"
 )
 
@@ -31,7 +32,7 @@ func NewUserController(service *services.UserService) *UserController {
 func (c *UserController) GetAllUsers(ctx *gin.Context) {
 	users, err := c.service.GetAllUsers()
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": apperrors.ErrInternalServerError})
 		return
 	}
 	ctx.JSON(http.StatusOK, mappers.MapToUserListResponse(users))
@@ -52,13 +53,18 @@ func (c *UserController) GetUserByID(ctx *gin.Context) {
 	idStr := ctx.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "неверный ID"})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": apperrors.ErrInvalidUserID})
 		return
 	}
 
 	user, err := c.service.GetUserByID(uint(id))
 	if err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		switch err.Error() {
+		case apperrors.ErrUserNotFound:
+			ctx.JSON(http.StatusNotFound, gin.H{"error": apperrors.ErrUserNotFound})
+		default:
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": apperrors.ErrInternalServerError})
+		}
 		return
 	}
 	ctx.JSON(http.StatusOK, mappers.MapToUserResponse(user))
@@ -78,15 +84,20 @@ func (c *UserController) DeleteUser(ctx *gin.Context) {
 	idStr := ctx.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "неверный ID"})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": apperrors.ErrInvalidUserID})
 		return
 	}
 
 	if err := c.service.DeleteUser(uint(id)); err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		switch err.Error() {
+		case apperrors.ErrUserNotFound:
+			ctx.JSON(http.StatusNotFound, gin.H{"error": apperrors.ErrUserNotFound})
+		default:
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": apperrors.ErrInternalServerError})
+		}
 		return
 	}
-	ctx.JSON(http.StatusOK, gin.H{"message": "пользователь успешно удален"})
+	ctx.JSON(http.StatusOK, gin.H{"message": "user successfully deleted"})
 }
 
 // @Summary Назначить роль пользователю
@@ -105,7 +116,7 @@ func (c *UserController) AssignRole(ctx *gin.Context) {
 	idStr := ctx.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "неверный ID"})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": apperrors.ErrInvalidUserID})
 		return
 	}
 
@@ -116,8 +127,8 @@ func (c *UserController) AssignRole(ctx *gin.Context) {
 	}
 
 	if err := c.service.AssignRole(uint(id), input.RoleName); err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": apperrors.ErrFailedToAssignRole})
 		return
 	}
-	ctx.JSON(http.StatusOK, gin.H{"message": "роль успешно назначена"})
+	ctx.JSON(http.StatusOK, gin.H{"message": "role successfully assigned"})
 }

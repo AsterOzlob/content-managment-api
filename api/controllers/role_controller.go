@@ -7,6 +7,7 @@ import (
 	"github.com/AsterOzlob/content_managment_api/internal/dto"
 	"github.com/AsterOzlob/content_managment_api/internal/dto/mappers"
 	"github.com/AsterOzlob/content_managment_api/internal/services"
+	apperrors "github.com/AsterOzlob/content_managment_api/pkg/errors"
 	"github.com/gin-gonic/gin"
 )
 
@@ -40,7 +41,7 @@ func (c *RoleController) CreateRole(ctx *gin.Context) {
 
 	createdRole, err := c.service.CreateRole(&input)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": apperrors.ErrInternalServerError})
 		return
 	}
 	ctx.JSON(http.StatusCreated, mappers.MapToRoleResponse(createdRole))
@@ -57,7 +58,7 @@ func (c *RoleController) CreateRole(ctx *gin.Context) {
 func (c *RoleController) GetAllRoles(ctx *gin.Context) {
 	roles, err := c.service.GetAllRoles()
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": apperrors.ErrInternalServerError})
 		return
 	}
 	ctx.JSON(http.StatusOK, mappers.MapToRoleListResponse(roles))
@@ -78,13 +79,18 @@ func (c *RoleController) GetRoleByID(ctx *gin.Context) {
 	idStr := ctx.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "неверный ID"})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": apperrors.ErrInvalidRoleID})
 		return
 	}
 
 	role, err := c.service.GetRoleByID(uint(id))
 	if err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		switch err.Error() {
+		case apperrors.ErrRoleNotFound:
+			ctx.JSON(http.StatusNotFound, gin.H{"error": apperrors.ErrRoleNotFound})
+		default:
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": apperrors.ErrInternalServerError})
+		}
 		return
 	}
 	ctx.JSON(http.StatusOK, mappers.MapToRoleResponse(role))
@@ -107,7 +113,7 @@ func (c *RoleController) UpdateRole(ctx *gin.Context) {
 	idStr := ctx.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "неверный ID"})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": apperrors.ErrInvalidRoleID})
 		return
 	}
 
@@ -119,7 +125,12 @@ func (c *RoleController) UpdateRole(ctx *gin.Context) {
 
 	updatedRole, err := c.service.UpdateRole(uint(id), &input)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		switch err.Error() {
+		case apperrors.ErrRoleNotFound:
+			ctx.JSON(http.StatusNotFound, gin.H{"error": apperrors.ErrRoleNotFound})
+		default:
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": apperrors.ErrInternalServerError})
+		}
 		return
 	}
 	ctx.JSON(http.StatusOK, mappers.MapToRoleResponse(updatedRole))
@@ -139,13 +150,18 @@ func (c *RoleController) DeleteRole(ctx *gin.Context) {
 	idStr := ctx.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "неверный ID"})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": apperrors.ErrInvalidRoleID})
 		return
 	}
 
 	if err := c.service.DeleteRole(uint(id)); err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		switch err.Error() {
+		case apperrors.ErrRoleNotFound:
+			ctx.JSON(http.StatusNotFound, gin.H{"error": apperrors.ErrRoleNotFound})
+		default:
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": apperrors.ErrInternalServerError})
+		}
 		return
 	}
-	ctx.JSON(http.StatusOK, gin.H{"message": "роль успешно удалена"})
+	ctx.JSON(http.StatusOK, gin.H{"message": "role successfully deleted"})
 }

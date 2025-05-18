@@ -7,6 +7,7 @@ import (
 	"github.com/AsterOzlob/content_managment_api/internal/dto"
 	"github.com/AsterOzlob/content_managment_api/internal/dto/mappers"
 	"github.com/AsterOzlob/content_managment_api/internal/services"
+	apperrors "github.com/AsterOzlob/content_managment_api/pkg/errors"
 	"github.com/AsterOzlob/content_managment_api/pkg/utils"
 	"github.com/gin-gonic/gin"
 )
@@ -34,19 +35,17 @@ func NewArticleController(service *services.ArticleService) *ArticleController {
 func (c *ArticleController) CreateArticle(ctx *gin.Context) {
 	var input dto.ArticleInput
 	if err := ctx.ShouldBindJSON(&input); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": apperrors.ErrInvalidArticleID})
 		return
 	}
-
 	userID, err := utils.GetUserIDFromContext(ctx)
 	if err != nil {
-		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "пользователь не аутентифицирован"})
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": apperrors.ErrUserNotAuthenticated})
 		return
 	}
-
 	article, err := c.service.CreateArticle(input, userID)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": apperrors.ErrInternalServerError})
 		return
 	}
 	ctx.JSON(http.StatusCreated, mappers.MapToArticleResponse(article))
@@ -62,7 +61,7 @@ func (c *ArticleController) CreateArticle(ctx *gin.Context) {
 func (c *ArticleController) GetAllArticles(ctx *gin.Context) {
 	articles, err := c.service.GetAllArticles()
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": apperrors.ErrInternalServerError})
 		return
 	}
 	ctx.JSON(http.StatusOK, mappers.MapToArticleListResponse(articles))
@@ -82,13 +81,17 @@ func (c *ArticleController) GetArticleByID(ctx *gin.Context) {
 	idStr := ctx.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "неверный ID"})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": apperrors.ErrInvalidArticleID})
 		return
 	}
-
 	article, err := c.service.GetArticleByID(uint(id))
 	if err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "статья не найдена"})
+		switch err.Error() {
+		case apperrors.ErrArticleNotFound:
+			ctx.JSON(http.StatusNotFound, gin.H{"error": apperrors.ErrArticleNotFound})
+		default:
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": apperrors.ErrInternalServerError})
+		}
 		return
 	}
 	ctx.JSON(http.StatusOK, mappers.MapToArticleResponse(article))
@@ -112,37 +115,33 @@ func (c *ArticleController) UpdateArticle(ctx *gin.Context) {
 	idStr := ctx.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "неверный ID"})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": apperrors.ErrInvalidArticleID})
 		return
 	}
-
 	var input dto.ArticleInput
 	if err := ctx.ShouldBindJSON(&input); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-
 	userID, err := utils.GetUserIDFromContext(ctx)
 	if err != nil {
-		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "пользователь не аутентифицирован"})
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": apperrors.ErrUserNotAuthenticated})
 		return
 	}
-
 	userRoles, err := utils.GetUserRolesFromContext(ctx)
 	if err != nil {
-		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "роли пользователя не найдены"})
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": apperrors.ErrUserRolesNotFound})
 		return
 	}
-
 	article, err := c.service.UpdateArticle(uint(id), input, userID, userRoles)
 	if err != nil {
 		switch err.Error() {
-		case "доступ запрещен: вы не являетесь владельцем или у вас нет необходимой роли":
-			ctx.JSON(http.StatusForbidden, gin.H{"error": "доступ запрещен"})
-		case "статья не найдена":
-			ctx.JSON(http.StatusNotFound, gin.H{"error": "статья не найдена"})
+		case apperrors.ErrAccessDenied:
+			ctx.JSON(http.StatusForbidden, gin.H{"error": apperrors.ErrAccessDenied})
+		case apperrors.ErrArticleNotFound:
+			ctx.JSON(http.StatusNotFound, gin.H{"error": apperrors.ErrArticleNotFound})
 		default:
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "внутренняя ошибка сервера"})
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": apperrors.ErrInternalServerError})
 		}
 		return
 	}
@@ -165,33 +164,30 @@ func (c *ArticleController) DeleteArticle(ctx *gin.Context) {
 	idStr := ctx.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "неверный ID"})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": apperrors.ErrInvalidArticleID})
 		return
 	}
-
 	userID, err := utils.GetUserIDFromContext(ctx)
 	if err != nil {
-		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "пользователь не аутентифицирован"})
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": apperrors.ErrUserNotAuthenticated})
 		return
 	}
-
 	userRoles, err := utils.GetUserRolesFromContext(ctx)
 	if err != nil {
-		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "роли пользователя не найдены"})
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": apperrors.ErrUserRolesNotFound})
 		return
 	}
-
 	err = c.service.DeleteArticle(uint(id), userID, userRoles)
 	if err != nil {
 		switch err.Error() {
-		case "доступ запрещен: вы не являетесь владельцем или у вас нет необходимой роли":
-			ctx.JSON(http.StatusForbidden, gin.H{"error": "доступ запрещен"})
-		case "статья не найдена":
-			ctx.JSON(http.StatusNotFound, gin.H{"error": "статья не найдена"})
+		case apperrors.ErrAccessDenied:
+			ctx.JSON(http.StatusForbidden, gin.H{"error": apperrors.ErrAccessDenied})
+		case apperrors.ErrArticleNotFound:
+			ctx.JSON(http.StatusNotFound, gin.H{"error": apperrors.ErrArticleNotFound})
 		default:
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "внутренняя ошибка сервера"})
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": apperrors.ErrInternalServerError})
 		}
 		return
 	}
-	ctx.JSON(http.StatusOK, gin.H{"message": "статья успешно удалена"})
+	ctx.JSON(http.StatusOK, gin.H{"message": "article deleted successfully"})
 }
