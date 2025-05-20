@@ -63,7 +63,7 @@ API соответствует **принципам REST**, использует
 ---
 
 ## 🗄️ Схема базы данных
-![Uploading image.png…]()
+![image](https://github.com/user-attachments/assets/215299e3-0da3-424b-b897-1c6baaeaf433)
 
 ---
 
